@@ -19,7 +19,7 @@
 import {
   WORLD_W, WORLD_H, TILE_TYPES,
   crossingRows,
-  ELDERWATCH, ELDERWATCH_BOULDERS, ELDERWATCH_PLATES, ELDERWATCH_GATES, DOOR_KEYS,
+  ELDERWATCH, TOWER, TOWER_FLOORS,
 } from '../../shared/constants.js';
 
 const T = TILE_TYPES;
@@ -55,8 +55,6 @@ export function buildElderwatch(seed) {
   };
 
   const W = ELDERWATCH.wall;
-  const K = ELDERWATCH.keep;
-  const G = ELDERWATCH.guardroom;
 
   // ---- 1. the moor outside: cold grass gone to scrub, with copses of pine.
   for (let y = 0; y < WORLD_H; y += 1) {
@@ -67,7 +65,7 @@ export function buildElderwatch(seed) {
     }
   }
 
-  // ---- 2. the road in from the west, and the one that runs to the gate.
+  // ---- 2. the road in from the west, up to the fort's gate.
   const road = crossingRows('elderwatch', 'west');
   const roadY = road ? road.y0 + 1 : 33;
   for (let x = 0; x <= W.x0; x += 1) put(x, roadY, T.path);
@@ -75,44 +73,57 @@ export function buildElderwatch(seed) {
     put(W.x0 - 1, y, T.path);
   }
 
-  // ---- 3. THE WALL. Two tiles thick — a fort you can see round the back of is
-  //         a fence. Rimewall, the one masonry no tool in the game touches.
+  // ---- 3. THE OUTER WALL, two tiles thick. A fort you can see round the back
+  //         of is a fence.
   rect(W.x0, W.y0, W.x1, W.y1, (x, y) => put(x, y, T.grass));
   ring(W.x0, W.y0, W.x1, W.y1, T.rimewall);
   ring(W.x0 + 1, W.y0 + 1, W.x1 - 1, W.y1 - 1, T.rimewall);
-
   // The front gate: SHUT, for the whole visit. It is what makes the culvert the
   // way in rather than a shortcut.
   put(ELDERWATCH.gate.x, ELDERWATCH.gate.y, T.icegate);
   put(ELDERWATCH.gate.x + 1, ELDERWATCH.gate.y, T.icegate);
-
   // The culvert: cracked masonry, both tiles of the wall's thickness.
   put(ELDERWATCH.culvert.x, ELDERWATCH.culvert.y, T.crackedcrag);
   put(ELDERWATCH.culvert.x + 1, ELDERWATCH.culvert.y, T.crackedcrag);
 
-  // ---- 4. THE YARD: open ground, a well, and two watchmen's beats.
+  // ---- 4. THE BAILEY. Cobbled ground, and a garrison's clutter on it: a
+  //         well, stacked crates, braziers, and lean-to sheds against the
+  //         wall. An empty yard reads as an unfinished map.
   floor(W.x0 + 2, W.y0 + 2, W.x1 - 2, W.y1 - 2, T.grass);
-  for (const [x, y] of [[26, 16], [27, 16], [26, 17], [27, 17]]) put(x, y, T.stone);
+  const cobbles = [
+    [22, 24, 34, 26], [34, 30, 40, 36], [40, 20, 50, 22],
+  ];
+  for (const [x0, y0, x1, y1] of cobbles) floor(x0, y0, x1, y1, T.path);
+  // sheds and stores along the north and east walls
+  for (const [x0, y0, x1, y1] of [[22, 11, 30, 14], [46, 11, 52, 15], [46, 32, 53, 37]]) {
+    ring(x0, y0, x1, y1, T.rimewall);
+    floor(x0 + 1, y0 + 1, x1 - 1, y1 - 1, T.rockfloor);
+    put(Math.round((x0 + x1) / 2), y1, T.rockfloor);   // a doorway
+  }
+  // the well
+  for (const [x, y] of [[26, 30], [27, 30], [26, 31], [27, 31]]) put(x, y, T.stone);
+  // and a scatter of stacked stone around the yard's edges
+  for (const [x, y] of [
+    [21, 18], [21, 19], [31, 12], [44, 34], [45, 34], [52, 26], [52, 27], [23, 36], [24, 36],
+  ]) put(x, y, T.stone);
 
-  // ---- 5. THE KEEP, north-east. Stone walls, a rock floor, one door.
-  ring(K.x0, K.y0, K.x1, K.y1, T.cliff);
-  floor(K.x0 + 1, K.y0 + 1, K.x1 - 1, K.y1 - 1, T.rockfloor);
-  // The keep door is LOCKED. Solid until you carry the Brass Key.
-  put(DOOR_KEYS.elderwatch.x, DOOR_KEYS.elderwatch.y, T.lockdoor);
-  // The Hall of Keeping is the back of the keep, behind an inner arch.
-  for (let x = K.x0 + 1; x <= K.x1 - 1; x += 1) put(x, K.y0 + 5, T.cliff);
-  put(K.doorX, K.y0 + 5, T.rockfloor);
-  put(ELDERWATCH.standard.x, ELDERWATCH.standard.y, T.rockfloor);
+  // ---- 5. THE KEEP: a ROUND TOWER in the middle of the bailey, with its door
+  //         in the south face. Inside it, the map greys out and you climb.
+  for (let y = TOWER.cy - TOWER.r - 1; y <= TOWER.cy + TOWER.r + 1; y += 1) {
+    for (let x = TOWER.cx - TOWER.r - 1; x <= TOWER.cx + TOWER.r + 1; x += 1) {
+      const d = Math.hypot(x - TOWER.cx, y - TOWER.cy);
+      if (d <= TOWER.r) put(x, y, T.cliff);            // the tower's bulk
+      else if (d <= TOWER.r + 1) put(x, y, T.rimewall); // its footing
+    }
+  }
+  // THE DOOR IS A STAIR. Stepping onto it is what takes you into the Keep —
+  // as a rockfloor tile it was a doorway with no door behind it, and the tower
+  // could be walked up to and not entered.
+  put(TOWER.doorX, TOWER.doorY, T.stair);
+  put(TOWER.doorX, TOWER.doorY + 1, T.rockfloor);
+  for (let y = TOWER.doorY + 1; y <= W.y1 - 2; y += 1) put(TOWER.doorX, y, T.path);
 
-  // ---- 6. THE GUARDROOM, south-east, behind a barred door on two plates.
-  ring(G.x0, G.y0, G.x1, G.y1, T.rimewall);
-  floor(G.x0 + 1, G.y0 + 1, G.x1 - 1, G.y1 - 1, T.rockfloor);
-  for (const g of ELDERWATCH_GATES.guardroom) put(g.x, g.y, T.icegate);
-  for (const p of ELDERWATCH_PLATES) put(p.x, p.y, T.plate);
-  for (const b of ELDERWATCH_BOULDERS) put(b.x, b.y, T.grass);
-  put(ELDERWATCH.key.x, ELDERWATCH.key.y, T.rockfloor);
-
-  // ---- 7. seal the map, leaving the road west open.
+  // ---- 6. seal the map, leaving the road west open.
   for (let x = 0; x < WORLD_W; x += 1) { put(x, 0, T.stone); put(x, WORLD_H - 1, T.stone); }
   for (let y = 0; y < WORLD_H; y += 1) {
     put(WORLD_W - 1, y, T.stone);
@@ -121,6 +132,62 @@ export function buildElderwatch(seed) {
   }
 
   return { w: WORLD_W, h: WORLD_H, seed: seed | 0, tiles, layers };
+}
+
+/**
+ * buildTowerFloor(n) -> { w, h, seed, tiles, layers }
+ *
+ * ONE FLOOR OF THE KEEP, drawn on a full-size map so that everything
+ * downstream — collision, the camera, the tile loop — needs no special case.
+ * Outside the tower's circle is solid: it is not part of this floor, and while
+ * you are on this floor it is not part of the world either. The renderer greys
+ * it out, so what you see is one room hanging in the middle of Elderwatch.
+ */
+export function buildTowerFloor(n) {
+  const tiles = new Uint8Array(WORLD_W * WORLD_H);
+  const layers = new Uint8Array(WORLD_W * WORLD_H);
+  const idx = (x, y) => y * WORLD_W + x;
+  const put = (x, y, t) => { if (inBounds(x, y)) tiles[idx(x, y)] = t; };
+  const floorDef = TOWER_FLOORS[n - 1];
+  if (!floorDef) return { w: WORLD_W, h: WORLD_H, seed: n, tiles, layers };
+
+  // Everything is rock; the room is cut out of it.
+  tiles.fill(T.cliff);
+  for (let y = TOWER.cy - TOWER.r; y <= TOWER.cy + TOWER.r; y += 1) {
+    for (let x = TOWER.cx - TOWER.r; x <= TOWER.cx + TOWER.r; x += 1) {
+      const d = Math.hypot(x - TOWER.cx, y - TOWER.cy);
+      if (d <= TOWER.r - 2) put(x, y, T.rockfloor);
+      else if (d <= TOWER.r) put(x, y, T.rimewall);
+    }
+  }
+
+  // The furniture, all of it drawn as tiles so it collides like a room should.
+  // Every prop is a real tile, so it collides like the thing it looks like. The
+  // brazier used to stand in as a PRESSURE PLATE, which is the one prop in this
+  // game a player must never misread.
+  const PROP_TILE = {
+    pillar: T.rimewall,
+    crate: T.crate,
+    brazier: T.brazier,
+    table: T.crate,
+    rack: T.crate,
+    banner: T.rimewall,
+    water: T.water,
+  };
+  for (const prop of (floorDef.props || [])) {
+    put(prop.x, prop.y, PROP_TILE[prop.kind] || T.crate);
+  }
+  for (const c of (floorDef.cracked || [])) put(c.x, c.y, T.crackedcrag);
+  for (const g of Object.values(floorDef.gates || {})) {
+    for (const t of g) put(t.x, t.y, T.icegate);
+  }
+  for (const p of (floorDef.plates || [])) put(p.x, p.y, T.plate);
+  for (const b of (floorDef.boulders || [])) put(b.x, b.y, T.rockfloor);
+  if (floorDef.lock) put(floorDef.lock.x, floorDef.lock.y, T.lockdoor);
+  if (floorDef.up) put(floorDef.up.x, floorDef.up.y, T.stair);
+  if (floorDef.down) put(floorDef.down.x, floorDef.down.y, T.ladder);
+
+  return { w: WORLD_W, h: WORLD_H, seed: n, tiles, layers };
 }
 
 export default buildElderwatch;

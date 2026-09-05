@@ -1456,6 +1456,54 @@ the halo also covers, and it failed — correctly. The test was wrong, not the
 rule.
 
 ---
+## DONE 2026-09-05 (4) — the Keep: Elderwatch becomes a tower
+
+Bruno liked the castle and the ring, and asked for a TOWER: circular floors,
+climbed one at a time, with the rest of the map greying out around the floor you
+are on. Also: more puzzles, more guards, more detail, and decoration.
+
+THE KEEP is a round tower in the middle of the bailey with four floors —
+Guardroom, Cistern, Armoury, Hall of Keeping. Each floor is a FULL-SIZE MAP with
+one round room cut into it, so collision, the camera and the tile loop need no
+special case at all; the bailey is drawn around it from the ground map and
+greyed, feathered at the wall. Four rooms at the same coordinates is the thing a
+flat fort could not do, and it is why the keep became a tower.
+
+STEPPING ONTO A STAIR CLIMBS IT. No key to press: a staircase you have to ask
+permission to use is a staircase you walk past. Arriving puts you on the other
+floor's opposite stair, and the step you arrive on does not count until you
+leave it — without that she rode up and down forever, a lift stuck between two
+floors.
+
+PER FLOOR: patrols, plates, barrels, gates, cracked arches and locked doors all
+come off the floor's own definition through one accessor. Boulder state is keyed
+`area:fN:id`, because two floors both have a barrel called `cistern_a`.
+
+DECORATION, inside and out. The bailey got cobbles, a well, sheds, stacked
+stone. The Reaches got cairns, shore rocks, spoil heaps, crates and braziers at
+the cave mouth — and the first pass of it FILLED IN THE LABYRINTH, because roads
+up there are carved as plain snow and so are the maze's corridors, so "scatter
+on empty snow" cheerfully walled the Hooks off from the world. Every carved
+route now records its own tiles and decoration reads that set rather than
+guessing from the tile.
+
+AND THE BRAZIER WAS DRAWN AS A PRESSURE PLATE. It stood in as one because the
+tile existed — in a game where plates open doors, that is the single prop a
+player must never misread. Braziers and crates have their own tiles now.
+
+THE OTHER THREE, from the same message:
+  * THE LANTERN LIT THE WRONG PLACE in the summit cave. The pool was centred on
+    her UNLIFTED position while she is drawn a full three tiles up, so her light
+    fell outside the room she was standing in.
+  * A PANEL CANCELLED A SLIDE. Open the Bag halfway across the ice and close it
+    and you were standing still wherever you liked — a free stop anywhere on a
+    tarn whose whole puzzle is not being able to stop. It pauses now.
+  * A HELD KEY CARRIED HER OVER THE ISLAND. Landing on solid ground now latches
+    the direction until the key is released, which is how every ice puzzle in
+    the genre works and exactly why. The suite now DRIVES the slide with held
+    keys — three of them — and takes the Crampons at the end of it, so "the
+    route exists" and "the route can be played" are separately proven.
+
 ## DONE 2026-09-05 (3) — ELDERWATCH, the third map
 
 The Wise Man's errand made good: the Ashen Standard, in the Hall of Keeping,

@@ -2059,6 +2059,47 @@ const STAIR_1 = [
   'dd111111111111dd',
 ];
 
+// A LIT BRAZIER: an iron bowl on three legs with a fire in it. Warm, and the
+// only warm thing in a stone room — which is what a brazier is for.
+const BRAZIER_0 = [
+  '................',
+  '.......nn.......',
+  '......nyyn......',
+  '.....nyoyyn.....',
+  '....nyoooyyn....',
+  '....nyooooyn....',
+  '.....nyooyn.....',
+  '...0QQQQQQQQ0...',
+  '..0QzzzzzzzzQ0..',
+  '..0QzAAAAAAzQ0..',
+  '...0QzzzzzzQ0...',
+  '....0QQQQQQ0....',
+  '......0QQ0......',
+  '.....0Q00Q0.....',
+  '....0Q0..0Q0....',
+  '....00....00....',
+];
+
+// A STACK OF CRATES: banded wood, a garrison's clutter. Solid.
+const CRATE_0 = [
+  '................',
+  '..000000000000..',
+  '..0llkkllkkll0..',
+  '..0lkkllkkllk0..',
+  '..0kQQQQQQQQk0..',
+  '..0lkkllkkllk0..',
+  '..0llkkllkkll0..',
+  '..000000000000..',
+  '.0000000000000..',
+  '.0jkkllkkllkj0..',
+  '.0jkQQQQQQQkj0..',
+  '.0jkkllkkllkj0..',
+  '.0jllkkllkklj0..',
+  '.0jkkllkkllkj0..',
+  '.0000000000000..',
+  '................',
+];
+
 // A LOCKED DOOR: banded oak with an iron plate and a keyhole you can read from
 // across the room. It has to look like a KEY opens it, not a lever or a plate.
 const LOCKDOOR_0 = [
@@ -2376,6 +2417,8 @@ export const SPRITES = {
     brokenwall: makeSprite(BROKENWALL_0, PAL, T16R),
     snowroad: makeSprite(SNOWROAD_0, PAL, T16),
     lockdoor: makeSprite(LOCKDOOR_0, PAL, T16R),
+    brazier: makeSprite(BRAZIER_0, PAL, T16),
+    crate: makeSprite(CRATE_0, PAL, T16),
     // v2 — harvested variants, drawn in place of a depleted node.
     stump: makeSprite(TREE_TILE_0, PAL, T16), // see art.js SPRITES3.stump
     bloomstump: makeSprite(BLOOM_STUMP_0, PAL, T16),
@@ -2584,7 +2627,7 @@ const TILE_NAME_BY_ID = [
   'grass', 'path', 'water', 'stone', 'tree', 'sand', 'bluetree',
   'snow', 'ice', 'snowpine', 'crag',
   'cliff', 'ladder', 'stair', 'crackedcrag', 'icegate', 'plate', 'rockfloor',
-  'rimewall', 'snowroad', 'lockdoor',
+  'rimewall', 'snowroad', 'lockdoor', 'brazier', 'crate',
 ];
 
 /**

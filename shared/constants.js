@@ -121,6 +121,11 @@ export const TILE_TYPES = Object.freeze({
   // in the genre, and the first one in this game that a KEY opens rather than a
   // level, a plate or a tool.
   lockdoor: 20,
+  // Furniture. Solid, and drawn as what it is: a lit brazier and a stack of
+  // crates. Both were standing in as OTHER tiles — the brazier as a pressure
+  // plate, which is the one thing in the game a player must never misread.
+  brazier: 21,
+  crate: 22,
 });
 /**
  * WHICH TILES ARE TIMBER — i.e. behave like a tree everywhere it matters:
@@ -140,6 +145,7 @@ export const SOLID_TILES = Object.freeze([
   TILE_TYPES.rimewall,
   // Solid by default; the world lets you through when you hold the key.
   TILE_TYPES.lockdoor,
+  TILE_TYPES.brazier, TILE_TYPES.crate,
 ]);
 
 export const PALETTE = Object.freeze({
@@ -1258,6 +1264,151 @@ export const ELDERWATCH = Object.freeze({
   /** Where the Standard stands, at the back of the Hall. */
   standard: Object.freeze({ x: 44, y: 12 }),
 });
+
+/**
+ * THE KEEP OF ELDERWATCH — a round tower, climbed floor by floor.
+ *
+ * The fort's first cut was flat: a yard, a guardroom, a keep, all on one plane.
+ * It read as a diagram. A tower reads as a place — and it lets the map do
+ * something the mountain could not, which is to put four rooms at the SAME
+ * coordinates and let you climb through them.
+ *
+ * Inside, the world outside the tower's circle greys out. You are on one floor
+ * of one tower and the rest of Elderwatch is somewhere below you.
+ *
+ *   1  THE GUARDROOM   two watchmen on a ring corridor      -> time them
+ *   2  THE CISTERN     two barrels onto two plates           -> the gate opens
+ *   3  THE ARMOURY     a bricked arch                        -> the Stone Hammer
+ *                      and the BRASS KEY on its hook
+ *   4  THE HALL        a locked door                         -> the Brass Key
+ *                      and the ASHEN STANDARD on its stand
+ */
+export const TOWER = Object.freeze({
+  /** The circle, in tiles. Everything outside it greys out while you are in. */
+  cx: 37, cy: 24, r: 11,
+  /** The door in the tower's south face, on the ground floor. */
+  doorX: 37, doorY: 35,
+  /** How many floors above the ground. */
+  floors: 4,
+});
+
+/**
+ * WHAT IS ON EACH FLOOR. One entry per floor, 1-based.
+ *
+ * `up`/`down` are the stairs. `patrols` are beats walked on the clock, the same
+ * shape the Rime Warden uses. `door` is where a patrol puts you back to on that
+ * floor — you lose the floor, not the tower.
+ */
+export const TOWER_FLOORS = Object.freeze([
+  Object.freeze({
+    n: 1,
+    name: 'The Guardroom',
+    up: Object.freeze({ x: 37, y: 16 }),
+    down: Object.freeze({ x: 37, y: 33 }),
+    door: Object.freeze({ x: 37, y: 32 }),
+    patrols: Object.freeze([
+      Object.freeze({ rowY: 21, fromX: 29, toX: 45, stepMs: 460, sight: 4 }),
+      Object.freeze({ rowY: 27, fromX: 45, toX: 29, stepMs: 560, sight: 4 }),
+    ]),
+    /** Pillars, crates and braziers — a room, not a disc of floor. */
+    props: Object.freeze([
+      Object.freeze({ kind: 'pillar', x: 32, y: 19 }),
+      Object.freeze({ kind: 'pillar', x: 42, y: 19 }),
+      Object.freeze({ kind: 'pillar', x: 32, y: 29 }),
+      Object.freeze({ kind: 'pillar', x: 42, y: 29 }),
+      Object.freeze({ kind: 'brazier', x: 34, y: 24 }),
+      Object.freeze({ kind: 'brazier', x: 40, y: 24 }),
+      Object.freeze({ kind: 'crate', x: 30, y: 24 }),
+      Object.freeze({ kind: 'crate', x: 30, y: 25 }),
+      Object.freeze({ kind: 'table', x: 44, y: 24 }),
+    ]),
+  }),
+  Object.freeze({
+    n: 2,
+    name: 'The Cistern',
+    up: Object.freeze({ x: 45, y: 24 }),
+    down: Object.freeze({ x: 37, y: 16 }),
+    door: Object.freeze({ x: 37, y: 17 }),
+    patrols: Object.freeze([
+      Object.freeze({ rowY: 30, fromX: 30, toX: 44, stepMs: 620, sight: 3 }),
+    ]),
+    boulders: Object.freeze([
+      Object.freeze({ id: 'cistern_a', x: 32, y: 22 }),
+      Object.freeze({ id: 'cistern_b', x: 32, y: 26 }),
+    ]),
+    plates: Object.freeze([
+      Object.freeze({ id: 'cistern_a', x: 40, y: 22, gate: 'cistern' }),
+      Object.freeze({ id: 'cistern_b', x: 40, y: 26, gate: 'cistern' }),
+    ]),
+    gates: Object.freeze({
+      cistern: Object.freeze([
+        Object.freeze({ x: 43, y: 23 }),
+        Object.freeze({ x: 43, y: 24 }),
+        Object.freeze({ x: 43, y: 25 }),
+      ]),
+    }),
+    props: Object.freeze([
+      Object.freeze({ kind: 'water', x: 36, y: 24 }),
+      Object.freeze({ kind: 'water', x: 37, y: 24 }),
+      Object.freeze({ kind: 'water', x: 36, y: 25 }),
+      Object.freeze({ kind: 'water', x: 37, y: 25 }),
+      Object.freeze({ kind: 'brazier', x: 33, y: 30 }),
+      Object.freeze({ kind: 'crate', x: 41, y: 30 }),
+    ]),
+  }),
+  Object.freeze({
+    n: 3,
+    name: 'The Armoury',
+    up: Object.freeze({ x: 29, y: 24 }),
+    down: Object.freeze({ x: 45, y: 24 }),
+    door: Object.freeze({ x: 44, y: 24 }),
+    patrols: Object.freeze([
+      Object.freeze({ rowY: 20, fromX: 44, toX: 30, stepMs: 500, sight: 5 }),
+      Object.freeze({ rowY: 28, fromX: 30, toX: 44, stepMs: 440, sight: 5 }),
+    ]),
+    /** The bricked arch across the way west. The Stone Hammer opens it. */
+    cracked: Object.freeze([
+      Object.freeze({ x: 32, y: 23 }),
+      Object.freeze({ x: 32, y: 24 }),
+      Object.freeze({ x: 32, y: 25 }),
+    ]),
+    props: Object.freeze([
+      Object.freeze({ kind: 'rack', x: 35, y: 19 }),
+      Object.freeze({ kind: 'rack', x: 37, y: 19 }),
+      Object.freeze({ kind: 'rack', x: 39, y: 19 }),
+      Object.freeze({ kind: 'crate', x: 42, y: 30 }),
+      Object.freeze({ kind: 'crate', x: 43, y: 30 }),
+      Object.freeze({ kind: 'brazier', x: 36, y: 30 }),
+      Object.freeze({ kind: 'table', x: 30, y: 20 }),
+    ]),
+  }),
+  Object.freeze({
+    n: 4,
+    name: 'The Hall of Keeping',
+    up: null,
+    down: Object.freeze({ x: 29, y: 24 }),
+    door: Object.freeze({ x: 30, y: 24 }),
+    patrols: Object.freeze([]),
+    /** The locked door across the shrine, and what opens it. */
+    lock: Object.freeze({ x: 37, y: 27, item: 'brass_key' }),
+    props: Object.freeze([
+      Object.freeze({ kind: 'brazier', x: 34, y: 20 }),
+      Object.freeze({ kind: 'brazier', x: 40, y: 20 }),
+      Object.freeze({ kind: 'banner', x: 35, y: 18 }),
+      Object.freeze({ kind: 'banner', x: 39, y: 18 }),
+      Object.freeze({ kind: 'table', x: 32, y: 28 }),
+      Object.freeze({ kind: 'crate', x: 43, y: 27 }),
+    ]),
+  }),
+]);
+
+/** Where the two things you came for sit, and on which floor. */
+export const TOWER_ITEMS = Object.freeze([
+  Object.freeze({ item: 'brass_key', floor: 3, x: 30, y: 24, xp: 'brass_key_taken',
+    found: 'The Brass Key — the Hall above will open now.' }),
+  Object.freeze({ item: 'ashen_standard', floor: 4, x: 37, y: 20, xp: 'standard_taken',
+    needs: 'brass_key', found: 'THE ASHEN STANDARD.' }),
+]);
 
 /** The barrels of the guardroom lock, and the plates they must sit on. */
 export const ELDERWATCH_BOULDERS = Object.freeze([

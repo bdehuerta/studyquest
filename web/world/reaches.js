@@ -92,6 +92,16 @@ export function buildReaches(seed) {
     for (let y = y0; y <= y1; y += 1) for (let x = x0; x <= x1; x += 1) fn(x, y);
   };
   const floor = (x0, y0, x1, y1, t) => rect(x0, y0, x1, y1, (x, y) => put(x, y, t));
+  /**
+   * EVERY TILE A ROUTE RUNS THROUGH.
+   *
+   * Roads up here are carved as plain SNOW, and the labyrinth's corridors are
+   * snow too — so decoration scattered "on empty snow" cheerfully filled in the
+   * maze and walled the Hooks off from the world. A route has to be able to say
+   * so; guessing from the tile cannot.
+   */
+  const routed = new Set();
+  const keep = (x, y) => routed.add(`${x},${y}`);
   const wall = (x0, y0, x1, y1) => rect(x0, y0, x1, y1, (x, y) => put(x, y, T.rimewall));
 
   // ---- 1. bare snow, and pines in COPSES rather than sprinkled per tile.
@@ -136,6 +146,7 @@ export function buildReaches(seed) {
       const y = MAZE_Y + r;
       lay(x, y, 0);
       put(x, y, row[c] === '#' ? T.rimewall : T.snow);
+      keep(x, y);
     }
   }
   // ---- 4b. THE ROAD EAST, out of the labyrinth's north door and away along
@@ -144,14 +155,9 @@ export function buildReaches(seed) {
     put(x, EAST_ROAD.y, T.snowroad);
     lay(x, EAST_ROAD.y, 0);
   }
-  // ITS FAR END IS A PASS, not a road that stops in a field. Two piers of
-  // rimewall frame the last tile, and the border beyond it stays sealed: you
-  // can see where the road goes and that it is not open yet, which is the whole
-  // job of a signpost you cannot follow.
-  put(EAST_ROAD.x1, EAST_ROAD.y - 1, T.rimewall);
-  put(EAST_ROAD.x1, EAST_ROAD.y + 1, T.rimewall);
-  put(EAST_ROAD.x1 - 1, EAST_ROAD.y - 1, T.rimewall);
-  put(EAST_ROAD.x1 - 1, EAST_ROAD.y + 1, T.rimewall);
+  // NO PIERS. They framed the end of the road while it was a dead end, and
+  // once Elderwatch existed they were two stones standing in a road that goes
+  // somewhere. A crossing does not need a monument.
 
   // ---- 5. THE FROZEN TARN, layer 1. THE WHOLE TERRACE IS ICE, wall to wall.
   //
@@ -248,6 +254,57 @@ export function buildReaches(seed) {
     if (!walkable) put(g.x, g.y, layers[idx(g.x, g.y)] >= 3 ? T.rockfloor : T.snow);
   }
 
+  // ---- 9b. DECORATION. The terraces were four bands of clean snow with the
+  //          puzzle pieces sitting on them, which reads as a diagram rather
+  //          than as a mountain. This is the scatter that makes each one a
+  //          PLACE: cairns and boulder fields on the Foot, frozen scrub and
+  //          rocks along the tarn's shore, spoil heaps and abandoned crates on
+  //          the Boulder Terrace, and wind-carved crag on the Summit.
+  //
+  //          All of it deterministic, all of it OUTSIDE the routes: a decoration
+  //          that lands on the road is an obstacle nobody designed.
+  {
+    const free = (x, y) => {
+      if (routed.has(`${x},${y}`)) return false;
+      const t = tiles[idx(x, y)];
+      return t === T.snow || t === T.snowpine;
+    };
+    const dressing = (x0, y0, x1, y1, salt, density, kinds) => {
+      for (let y = y0; y <= y1; y += 1) {
+        for (let x = x0; x <= x1; x += 1) {
+          if (!free(x, y)) continue;
+          const n = scatter(x, y, (seed | 0) + salt);
+          if (n > density) continue;
+          // Never within a tile of a way up, a plate, a boulder or a cache.
+          let near = false;
+          for (const c of Object.values(CLIMBS)) {
+            if (Math.abs(c.x - x) <= 1 && Math.abs(c.y - y) <= 1) near = true;
+          }
+          for (const g of GEAR_SITES) {
+            if (Math.abs(g.x - x) <= 1 && Math.abs(g.y - y) <= 1) near = true;
+          }
+          for (const b of [...REACHES_BOULDERS, ...REACHES_PLATES]) {
+            if (Math.abs(b.x - x) <= 2 && Math.abs(b.y - y) <= 2) near = true;
+          }
+          if (near) continue;
+          put(x, y, kinds[Math.floor(n * 1000) % kinds.length]);
+        }
+      }
+    };
+    // The Foot: cairns and stray boulders among the copses.
+    dressing(1, 34, 62, 46, 5, 0.045, [T.crag, T.crag, T.snowpine]);
+    // The tarn's shore: rocks at the waterline, never on the ice.
+    dressing(1, 24, 62, 24, 9, 0.20, [T.crag]);
+    dressing(1, 31, 62, 31, 11, 0.14, [T.crag]);
+    // The Boulder Terrace: spoil heaps and crates the garrison left behind.
+    dressing(1, 17, 19, 23, 13, 0.12, [T.crag, T.crate]);
+    dressing(45, 17, 62, 23, 17, 0.12, [T.crag, T.crate]);
+    // The Summit: wind-carved rock, and a brazier by the cave mouth.
+    dressing(1, 1, 44, 7, 19, 0.09, [T.crag]);
+    put(WISE_CAVE.doorX - 1, WISE_CAVE.doorY + 1, T.brazier);
+    put(WISE_CAVE.doorX + 1, WISE_CAVE.doorY + 1, T.brazier);
+  }
+
   // ---- 10. THE TERRACE WALLS.
   //
   //          A tile with a HIGHER tile to its east, west or south is rock seen
@@ -297,11 +354,17 @@ export function buildReaches(seed) {
   // names Elderwatch — the server refuses the crossing, and the road's own
   // prompt says as much — but the tile is walkable so that the refusal can be
   // read there rather than guessed at from a wall.
+  // AT THE MAP'S LAST COLUMN, not at the crossing's threshold. `crossingRows`
+  // returns the x the crossing TRIGGERS at, which is one tile short of the edge
+  // on purpose — carving there left the actual border tile as crag, so the road
+  // east ran into a wall of stone with the prompt showing over it.
   const east = crossingRows('peaks', 'east');
   if (east) {
     for (let y = east.y0; y <= east.y1; y += 1) {
-      put(east.x, y, T.snowroad);
-      lay(east.x, y, 0);
+      for (let x = east.x; x < WORLD_W; x += 1) {
+        put(x, y, T.snowroad);
+        lay(x, y, 0);
+      }
     }
   }
 
@@ -315,9 +378,10 @@ export function buildReaches(seed) {
     let y = y0;
     for (let guard = 0; guard < 200; guard += 1) {
       const cur = tiles[idx(x, y)];
-      const keep = cur === T.ice || cur === T.plate || cur === T.ladder
+      const hold = cur === T.ice || cur === T.plate || cur === T.ladder
         || cur === T.stair || cur === T.icegate;
-      if (!keep) put(x, y, layers[idx(x, y)] >= 3 ? T.rockfloor : T.snow);
+      if (!hold) put(x, y, layers[idx(x, y)] >= 3 ? T.rockfloor : T.snow);
+      keep(x, y);
       if (x === x1 && y === y1) break;
       if (x !== x1) x += dx;
       else if (y !== y1) y += dy;

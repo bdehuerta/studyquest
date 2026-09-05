@@ -319,6 +319,8 @@ export function defaultState() {
     // whether the Rime Warden still stands. Seeded lazily by reachesOf() so a
     // save written before the mountain existed walks into a finished one.
     reaches: { gear: [], boulders: {}, warden: { beaten: false } },
+    // v8: which floor of the Keep of Elderwatch you are on, 0 for the bailey.
+    tower: { floor: 0 },
     // v6 — the second map. `area` is where the scholar is standing; `areaPos`
     // remembers the last tile in each, so walking back and forth does not dump
     // you at a fixed spot every time.

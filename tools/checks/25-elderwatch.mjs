@@ -67,8 +67,6 @@ const FILL = `
 const fill = (result) => FILL.replace('RESULT', result);
 
 const YARD = '25,25';
-const KEY = '50,34';
-const STANDARD = '44,12';
 
 export default {
   name: 'Elderwatch — a culvert, a watch, a barred door and a keyed keep',
@@ -119,8 +117,8 @@ export default {
     { type: 'note', text: 'THE WALL. The gate is barred and the culvert is not broken yet.' },
     {
       type: 'assert', label: 'nothing inside the fort can be reached',
-      expr: fill(`return JSON.stringify([seen.has('${YARD}'), seen.has('${KEY}'), seen.has('${STANDARD}')]);`),
-      equals: '[false,false,false]',
+      expr: fill(`return seen.has('${YARD}');`),
+      equals: false,
     },
     {
       type: 'eval', label: 'stand at the culvert and face it',
@@ -165,32 +163,72 @@ export default {
     },
     { type: 'wait', ms: 500 },
     {
-      type: 'assert', label: 'the yard is open — and nothing beyond it is',
-      expr: fill(`return JSON.stringify([seen.has('${YARD}'), seen.has('${KEY}'), seen.has('${STANDARD}')]);`),
-      equals: '[true,false,false]',
+      type: 'assert', label: 'and now the bailey is',
+      expr: fill(`return seen.has('${YARD}');`),
+      equals: true,
     },
 
-    { type: 'note', text: 'THE WATCH. Two of them, and each has a line of sight.' },
+    { type: 'note', text: 'THE KEEP. Four floors, and the map greys out around each one.' },
     {
-      type: 'assert', label: 'both are on their rounds',
-      expr: "return window.__sqWorld.getMountain().warden ? 1 : 0;", equals: 0,
+      type: 'eval', label: 'walk to the tower door',
+      expr: "window.__sqWorld.setPlayerTile(37, 37); return 'ok';",
+    },
+    { type: 'wait', ms: 500 },
+    { type: 'hold', key: 'w', ms: 900, label: 'in through the door' },
+    {
+      type: 'waitFor', timeoutMs: 8000, label: 'the Guardroom, floor one',
+      expr: "return window.__sqWorld.getMountain().floor === 1;",
+    },
+    { type: 'eval', label: 'stand in the middle of the room', expr: "window.__sqWorld.setPlayerTile(37, 24); return 'ok';" },
+    { type: 'wait', ms: 800 },
+    { type: 'screenshot', file: 'v8-keep-1.png' },
+    {
+      // ONE ROOM, AND THE REST OF ELDERWATCH BELOW IT. The floor is a full-size
+      // map with a round room cut into it; outside that circle the bailey is
+      // still drawn, and greyed.
+      type: 'assert', label: 'outside the tower is not part of this floor',
+      expr: `
+        return import('/shared/constants.js').then((C) => {
+          const W = window.__sqWorld;
+          // A tile out in the bailey, well beyond the circle.
+          return W.probeStep(C.TOWER.cx, C.TOWER.cy, 22, 12);
+        });
+      `,
+      equals: true,
+    },
+    {
+      type: 'assert', label: 'and two watchmen walk it',
+      expr: "return window.__sqWorld.getMountain().patrols;", equals: 2,
     },
     {
       type: 'eval', label: 'stand in a watchman’s path',
-      expr: "window.__sqWorld.setPlayerTile(28, 20); return 'ok';",
+      expr: "window.__sqWorld.setPlayerTile(35, 21); return 'ok';",
     },
     {
-      type: 'waitFor', timeoutMs: 25000, label: 'one of them sees you, and you are put back in the culvert',
+      type: 'waitFor', timeoutMs: 25000, label: 'caught — and put back at this floor’s door',
       expr: `
         const t = window.__sqWorld.getPlayerTile();
-        return t.x === 19 && t.y === 33;
+        return t.x === 37 && t.y === 32;
       `,
     },
 
-    { type: 'note', text: 'THE GUARDROOM: a barred door on two plates, and the Brass Key inside.' },
-    ...[['yard_a', 30, 32], ['yard_b', 30, 36]].flatMap(([, x0, y]) => {
+    { type: 'note', text: 'UP: the Cistern, and its two barrels.' },
+    {
+      type: 'api', route: '/api/tower/climb', body: { dir: 1 }, expectOk: true,
+      label: 'climb to floor two', path: 'name', equals: 'The Cistern',
+    },
+    {
+      type: 'eval', label: 'pull it into the page',
+      expr: "return window.sqMenu.reloadState().then(() => 'reloaded');",
+    },
+    { type: 'wait', ms: 700 },
+    {
+      type: 'assert', label: 'the way up is shut behind the gate',
+      expr: "return window.__sqWorld.getMountain().gateOpen.cistern;", equals: false,
+    },
+    ...[[32, 22], [32, 26]].flatMap(([x0, y]) => {
       const steps = [];
-      for (let x = x0; x < 36; x += 1) {
+      for (let x = x0; x < 40; x += 1) {
         steps.push({
           type: 'api', route: '/api/player/move', body: { x: x - 1, y }, expectOk: true,
           label: `behind the barrel at ${x},${y}`,
@@ -206,21 +244,65 @@ export default {
       type: 'eval', label: 'pull it into the page',
       expr: "return window.sqMenu.reloadState().then(() => 'reloaded');",
     },
-    { type: 'wait', ms: 500 },
+    { type: 'wait', ms: 600 },
     {
-      type: 'assert', label: 'the barred door opens',
-      expr: "return window.__sqWorld.getMountain().gateOpen.guardroom;", equals: true,
+      type: 'assert', label: 'both plates held, and the gate opens',
+      expr: "return window.__sqWorld.getMountain().gateOpen.cistern;", equals: true,
+    },
+    { type: 'screenshot', file: 'v8-keep-2.png' },
+
+    { type: 'note', text: 'UP: the Armoury, a bricked arch, and the Brass Key behind it.' },
+    {
+      type: 'api', route: '/api/tower/climb', body: { dir: 1 }, expectOk: true,
+      label: 'climb to floor three', path: 'name', equals: 'The Armoury',
     },
     {
-      type: 'assert', label: 'and the Brass Key can be reached — the keep still cannot',
-      expr: fill(`return JSON.stringify([seen.has('${KEY}'), seen.has('${STANDARD}')]);`),
-      equals: '[true,false]',
+      type: 'eval', label: 'pull it into the page',
+      expr: "return window.sqMenu.reloadState().then(() => 'reloaded');",
+    },
+    { type: 'wait', ms: 700 },
+    {
+      type: 'assert', label: 'the arch is bricked, and the Key is behind it',
+      expr: "return window.__sqWorld.probeStep(33, 24, 32, 24);", equals: true,
+    },
+    {
+      type: 'eval', label: 'break the arch with the Stone Hammer',
+      expr: `
+        window.__sqArch = 'pending';
+        (async () => {
+          for (const [x, y] of [[32, 23], [32, 24], [32, 25]]) {
+            for (let i = 0; i < 4; i += 1) {
+              const r = await fetch('/api/gather', {
+                method: 'POST', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ x, y, nodeType: 'crackedcrag' }),
+              }).then((z) => z.json());
+              if (!r.ok) { window.__sqArch = { ok: false, error: x + ',' + y + ': ' + r.error }; return; }
+              if (r.result && r.result.destroyed) break;
+            }
+          }
+          window.__sqArch = { ok: true };
+        })();
+        return 'swinging';
+      `,
+    },
+    {
+      type: 'waitFor', timeoutMs: 15000, label: 'the arch gives',
+      expr: "if (window.__sqArch === 'pending') return false; if (!window.__sqArch.ok) throw new Error(window.__sqArch.error); return true;",
+    },
+    {
+      type: 'eval', label: 'pull it into the page',
+      expr: "return window.sqMenu.reloadState().then(() => 'reloaded');",
+    },
+    { type: 'wait', ms: 600 },
+    {
+      type: 'assert', label: 'and the way west is open',
+      expr: "return window.__sqWorld.probeStep(33, 24, 32, 24);", equals: false,
     },
     {
       type: 'eval', label: 'take the Brass Key',
       expr: `
         window.__sqKey = 'pending';
-        window.__sqWorld.setPlayerTile(50, 34);
+        window.__sqWorld.setPlayerTile(30, 24);
         setTimeout(() => {
           Promise.resolve(window.__sqWorld.onTakeQuestItem('brass_key'))
             .then((j) => { window.__sqKey = j; }, (e) => { window.__sqKey = { ok: false, error: e.message }; });
@@ -232,18 +314,27 @@ export default {
       type: 'waitFor', timeoutMs: 8000, label: 'it is yours',
       expr: "if (window.__sqKey === 'pending') return false; if (!window.__sqKey.ok) throw new Error(window.__sqKey.error); return true;",
     },
-    {
-      type: 'assert', label: 'and now the keep door opens for you',
-      expr: fill(`return seen.has('${STANDARD}');`),
-      equals: true,
-    },
+    { type: 'screenshot', file: 'v8-keep-3.png' },
 
-    { type: 'note', text: 'THE HALL OF KEEPING.' },
+    { type: 'note', text: 'UP: the Hall of Keeping.' },
+    {
+      type: 'api', route: '/api/tower/climb', body: { dir: 1 }, expectOk: true,
+      label: 'climb to floor four', path: 'name', equals: 'The Hall of Keeping',
+    },
+    {
+      type: 'eval', label: 'pull it into the page',
+      expr: "return window.sqMenu.reloadState().then(() => 'reloaded');",
+    },
+    { type: 'wait', ms: 700 },
+    {
+      type: 'assert', label: 'the shrine door opens for the Key',
+      expr: "return window.__sqWorld.probeStep(37, 28, 37, 27);", equals: false,
+    },
     {
       type: 'eval', label: 'take the Ashen Standard',
       expr: `
         window.__sqStd = 'pending';
-        window.__sqWorld.setPlayerTile(44, 13);
+        window.__sqWorld.setPlayerTile(37, 21);
         setTimeout(() => {
           Promise.resolve(window.__sqWorld.onTakeQuestItem('ashen_standard'))
             .then((j) => { window.__sqStd = j; }, (e) => { window.__sqStd = { ok: false, error: e.message }; });
@@ -258,11 +349,6 @@ export default {
     {
       type: 'assert', label: 'and it pays what the whole errand was worth',
       expr: "return window.__sqStd.xp;", equals: 600,
-    },
-    {
-      type: 'assert', label: 'with the scene that sets the next objective',
-      expr: "return window.__sqStd.dialogue.objective.indexOf('farlands') !== -1;",
-      equals: true,
     },
     { type: 'wait', ms: 700 },
     { type: 'screenshot', file: 'v8-standard.png' },

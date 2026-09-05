@@ -3,7 +3,7 @@
 // camera, fixed-timestep loop, render order, toasts and interaction.
 
 import { buildReaches as buildReachesMap } from './reaches.js';
-import { buildElderwatch as buildElderwatchMap } from './elderwatch.js';
+import { buildElderwatch as buildElderwatchMap, buildTowerFloor } from './elderwatch.js';
 import {
   TILE,
   WORLD_W,
@@ -21,6 +21,7 @@ import {
   REACHES_GEAR, GEAR_SITES,
   EAST_ROAD, AREA_PUZZLES, bouldersFor, platesFor,
   ELDERWATCH, ELDERWATCH_WATCH, crossingAt, QUEST_SITES, DOOR_KEYS, QUEST_ITEMS,
+  TOWER, TOWER_FLOORS, TOWER_ITEMS,
   WARDEN, WISE_CAVE,
   HUT,
   BOAT,
@@ -632,6 +633,16 @@ export function createGame(canvas) {
   // collision, prompts, the minimap — reads whichever is current.
   let world = createWorld(WORLD_SEED, AREAS.home);
   let worldArea = AREAS.home;
+  /**
+   * WHICH FLOOR OF THE KEEP, 0 for the bailey.
+   *
+   * A floor is a full-size map with one round room cut into it, so nothing
+   * downstream — collision, the camera, the tile loop — needs to know the
+   * tower exists. `groundWorld` is kept alongside it so the bailey can still be
+   * DRAWN, greyed, around the room you are standing in.
+   */
+  let towerFloor = 0;
+  let groundWorld = null;
   /** The node a mature planting becomes on THIS map. */
   const plantingNodeType = () => PLANTING_NODE_TYPE[worldArea] || PLANTING_NODE_TYPE.home;
   /** What we tell the server is underfoot when planting on THIS map. */
@@ -656,10 +667,23 @@ export function createGame(canvas) {
    * Called from setState rather than on a timer: crossing is a server decision
    * that arrives in state, and the renderer's job is to notice.
    */
+  function stateFloor() {
+    const f = state && state.tower && Number(state.tower.floor);
+    return Number.isFinite(f) && f > 0 && f <= TOWER.floors ? f : 0;
+  }
+
   function syncArea() {
     const want = stateArea();
-    if (want === worldArea) return false;
-    world = createWorld(WORLD_SEED, want);
+    const wantFloor = want === AREAS.elderwatch ? stateFloor() : 0;
+    if (want === worldArea && wantFloor === towerFloor) return false;
+    towerFloor = wantFloor;
+    if (towerFloor > 0) {
+      if (!groundWorld) groundWorld = createWorld(WORLD_SEED, AREAS.elderwatch);
+      world = buildTowerFloor(towerFloor);
+    } else {
+      world = createWorld(WORLD_SEED, want);
+      groundWorld = want === AREAS.elderwatch ? world : null;
+    }
     worldArea = want;
     build.setWorld ? build.setWorld(world) : null;
     occupied.clear();
@@ -700,6 +724,12 @@ export function createGame(canvas) {
   let caughtAt = 0;
   /** How long the current slide has failed to move her. See update(). */
   let stalledMs = 0;
+  /** The direction that landed her on solid ground, until the key is released. */
+  let landedDir = null;
+  /** When the keep's stairs last moved her, so arriving does not re-trigger. */
+  let climbedAt = 0;
+  /** The step she arrived on, which does not count until she leaves it. */
+  let climbTile = null;
 
   const player = createPlayer(PLAZA.cx, PLAZA.cy);
   const input = createInput(typeof window !== 'undefined' ? window : null);
@@ -796,11 +826,13 @@ export function createGame(canvas) {
       layerName: LAYER_NAMES[layerAt(player.tileX(), player.tileY())] || null,
       gear: reachesState().gear.slice(),
       boulders: boulderList(),
-      platesHeld: platesFor(worldArea)
+      floor: towerFloor,
+      patrols: patrolList().length,
+      platesHeld: (towerFloor > 0 ? (puzzleSet().plates || []) : platesFor(worldArea))
         .filter((pl) => plateHeld(pl.x, pl.y))
         .map((pl) => pl.id || `${pl.x},${pl.y}`),
       gateOpen: Object.fromEntries(
-        Object.keys((AREA_PUZZLES[worldArea] || { gates: {} }).gates).map((k) => [k, gateOpen(k)])
+        Object.keys((puzzleSet() || { gates: {} }).gates || {}).map((k) => [k, gateOpen(k)])
       ),
       warden: wardenState(),
       wardenBeaten: reachesState().wardenBeaten,
@@ -896,6 +928,8 @@ export function createGame(canvas) {
     onTakeGear: null,
     /** fn(itemId) -> void. Raised by E over a quest item lying on the ground. */
     onTakeQuestItem: null,
+    /** fn(+1|-1) -> void. Raised by stepping onto a stair inside the keep. */
+    onClimbTower: null,
     /** fn(x, y, dx, dy) -> void. Raised by E against a boulder. */
     onPushBoulder: null,
     /** fn() -> void. Raised when the Warden's line falls across you. */
@@ -1239,6 +1273,7 @@ export function createGame(canvas) {
     // state; this is where the renderer notices and swaps the terrain under
     // them. Before rebuildBuildings, because the buildings belong to one map.
     const crossed = syncArea();
+    if (crossed) climbTile = { x: Number(state && state.player && state.player.x), y: Number(state && state.player && state.player.y) };
     if ((crossed || boardChanged) && state && state.player) {
       const px = Number(state.player.x);
       const py = Number(state.player.y);
@@ -1389,7 +1424,7 @@ export function createGame(canvas) {
     // check after `isSolidHere`, which meant the gate never opened at all; the
     // suite passed anyway because the old map let you walk round it.
     if (gateIsOpen(tx, ty)) return false;
-    if (AREA_PUZZLES[worldArea] && mountainBlocks(tx, ty)) return true;
+    if (puzzleSet() && mountainBlocks(tx, ty)) return true;
     if (isSolidHere(tx, ty)) return true;
     return occupied.has(tx + ',' + ty);
   }
@@ -1411,7 +1446,7 @@ export function createGame(canvas) {
       return !!name && gateOpen(name);
     }
     if (t === TILE_TYPES.lockdoor) {
-      const lock = DOOR_KEYS[worldArea];
+      const lock = lockHere();
       return !!lock && lock.x === tx && lock.y === ty && holdsItem(lock.item);
     }
     return false;
@@ -1458,7 +1493,7 @@ export function createGame(canvas) {
     }
     // A LOCKED DOOR opens for whoever carries its key, and for nobody else.
     if (t === TILE_TYPES.lockdoor) {
-      const lock = DOOR_KEYS[worldArea];
+      const lock = lockHere();
       if (lock && lock.x === tx && lock.y === ty) return !holdsItem(lock.item);
       return true;
     }
@@ -2249,6 +2284,40 @@ export function createGame(canvas) {
    * THE MOUNTAIN — layers, gear, ice, boulders and the Warden.
    * ================================================================= */
 
+  /** The floor's own definition, or null in the bailey. */
+  function floorDef() {
+    return towerFloor > 0 ? TOWER_FLOORS[towerFloor - 1] : null;
+  }
+
+  /**
+   * The boulders, plates, gates and get-thrown-back door that apply RIGHT NOW.
+   *
+   * On a tower floor that is the floor's own furniture; everywhere else it is
+   * the map's. One accessor, so nothing downstream has to know which.
+   */
+  function puzzleSet() {
+    const f = floorDef();
+    if (f) {
+      return {
+        boulders: f.boulders || [],
+        plates: f.plates || [],
+        gates: f.gates || {},
+        door: f.door,
+      };
+    }
+    return AREA_PUZZLES[worldArea] || null;
+  }
+
+  /** A key for the boulder store: the map, the floor, and the boulder. */
+  function boulderKey(id) {
+    return towerFloor > 0 ? `${worldArea}:f${towerFloor}:${id}` : `${worldArea}:${id}`;
+  }
+
+  /** Is this tile inside the keep's circle? */
+  function insideTower(tx, ty) {
+    return Math.hypot(tx - TOWER.cx, ty - TOWER.cy) <= TOWER.r;
+  }
+
   /** Which terrace a tile is on. Flat maps are all layer 0. */
   function layerAt(tx, ty) {
     if (!world.layers) return 0;
@@ -2286,11 +2355,13 @@ export function createGame(canvas) {
   function boulderList() {
     const saved = reachesState().boulders;
     const out = [];
-    for (const b of bouldersFor(worldArea)) {
+    const set = puzzleSet();
+    const list = towerFloor > 0 ? (set ? set.boulders : []) : bouldersFor(worldArea);
+    for (const b of list) {
       // Keyed `area:id`. Two maps may both have a boulder called `yard_a`, so
       // the store carries the map; the bare id is read as a fallback so a save
       // written before Elderwatch existed still finds its own boulders.
-      const at = saved && (saved[`${worldArea}:${b.id}`] || saved[b.id]);
+      const at = saved && (saved[boulderKey(b.id)] || saved[b.id]);
       out.push({
         id: b.id,
         x: at && Number.isFinite(Number(at.x)) ? Number(at.x) : b.x,
@@ -2300,7 +2371,7 @@ export function createGame(canvas) {
     return out;
   }
   function boulderAt(tx, ty) {
-    if (!AREA_PUZZLES[worldArea]) return null;
+    if (!puzzleSet()) return null;
     return boulderList().find((b) => b.x === tx && b.y === ty) || null;
   }
 
@@ -2312,12 +2383,14 @@ export function createGame(canvas) {
 
   /** An ice gate stands until every plate of its name is held. */
   function gateOpen(name) {
-    const plates = platesFor(worldArea).filter((p) => p.gate === name);
+    const set = puzzleSet();
+    const all = towerFloor > 0 ? (set ? set.plates : []) : platesFor(worldArea);
+    const plates = all.filter((p) => p.gate === name);
     if (!plates.length) return false;
     return plates.every((p) => plateHeld(p.x, p.y));
   }
   function gateAt(tx, ty) {
-    const set = AREA_PUZZLES[worldArea];
+    const set = puzzleSet();
     if (!set) return null;
     for (const [name, tiles] of Object.entries(set.gates)) {
       if (tiles.some((t) => t.x === tx && t.y === ty)) return name;
@@ -2327,7 +2400,9 @@ export function createGame(canvas) {
 
   /** A quest item lying here that has not been taken yet. */
   function questSiteAt(tx, ty) {
-    const sites = QUEST_SITES[worldArea];
+    const sites = worldArea === AREAS.elderwatch
+      ? TOWER_ITEMS.filter((q) => q.floor === towerFloor)
+      : QUEST_SITES[worldArea];
     if (!sites) return null;
     const held = (state && state.questItems) || {};
     return sites.find((q) => q.x === tx && q.y === ty && !(Number(held[q.item]) > 0)) || null;
@@ -2337,6 +2412,13 @@ export function createGame(canvas) {
     const f = player.facingTile();
     return questSiteAt(t.x, t.y) || questSiteAt(f.x, f.y);
   }
+  /** The locked door that applies here — the floor's, or the map's. */
+  function lockHere() {
+    const f = floorDef();
+    if (f) return f.lock || null;
+    return DOOR_KEYS[worldArea] || null;
+  }
+
   /** Do you carry this quest item? */
   function holdsItem(id) {
     const held = (state && state.questItems) || {};
@@ -2389,7 +2471,9 @@ export function createGame(canvas) {
       return w ? [w] : [];
     }
     if (worldArea === AREAS.elderwatch) {
-      return ELDERWATCH_WATCH.map((b) => pace(b)).filter(Boolean);
+      const f = floorDef();
+      const beats = f ? (f.patrols || []) : ELDERWATCH_WATCH;
+      return beats.map((b) => pace(b)).filter(Boolean);
     }
     return [];
   }
@@ -2753,14 +2837,37 @@ export function createGame(canvas) {
     // runs out. Done by feeding the player a SYNTHETIC INPUT rather than by
     // moving them directly, so the slide goes through exactly the same
     // collision, wall-sliding and animation as a walked step.
-    let feed = uiBlocking() ? NO_INPUT : input;
-    if (uiBlocking()) slide = null;
-    else {
+    // A PANEL PAUSES THE SLIDE; IT DOES NOT CANCEL IT.
+    //
+    // Clearing it meant the Bag was a brake: open it halfway across the ice,
+    // close it, and you were standing still wherever you liked — which is a
+    // free stop anywhere on the tarn, and the tarn is a puzzle about not being
+    // able to stop. She keeps her line and picks it up again when the panel
+    // closes.
+    const paused = uiBlocking();
+    let feed = paused ? NO_INPUT : input;
+    if (!paused) {
       const ax = input.axis();
       if (slide) {
         const nx = player.tileX() + slide.x;
         const ny = player.tileY() + slide.y;
-        if (!onSlipperyIce() || isBlocked(nx, ny)) slide = null;
+        if (!onSlipperyIce()) {
+          // LANDED. She has reached ground that will hold her, and the key that
+          // sent her may well still be down — so latch the direction and refuse
+          // it until it is released. Without this, holding east across the tarn
+          // carried her over the island and straight back onto the ice on the
+          // far side of it: the one tile you are trying to stop on is the one
+          // tile a held key walks you off. Every ice puzzle in the genre works
+          // this way, and this is why.
+          landedDir = slide;
+          slide = null;
+        } else if (isBlocked(nx, ny)) {
+          slide = null;
+        }
+      }
+      if (landedDir) {
+        const same = Math.sign(ax.x) === landedDir.x && Math.sign(ax.y) === landedDir.y;
+        if ((!ax.x && !ax.y) || !same || onSlipperyIce()) landedDir = null;
       }
       if (!slide && onSlipperyIce() && (ax.x || ax.y)) {
         // THE PRESSED DIRECTION MAY BE INTO A ROCK. Ordinary walking resolves
@@ -2799,6 +2906,8 @@ export function createGame(canvas) {
         }
       }
       if (slide) feed = { axis: () => slide };
+      // Still holding the key that landed her: she stays put until it is let go.
+      else if (landedDir) feed = NO_INPUT;
     }
     const wasX = player.px;
     const wasY = player.py;
@@ -2808,16 +2917,44 @@ export function createGame(canvas) {
     // thought of — a slide that is not moving her is not a slide, and holding
     // it would mean holding her input hostage. Clear it and let the next frame
     // read the keys again.
-    if (slide && Math.abs(player.px - wasX) < 0.01 && Math.abs(player.py - wasY) < 0.01) {
+    // ...but not while a panel is up: she is not moving because nothing is
+    // being asked of her, and a paused slide is not a stalled one.
+    if (!paused && slide
+      && Math.abs(player.px - wasX) < 0.01 && Math.abs(player.py - wasY) < 0.01) {
       stalledMs += dtMs;
       if (stalledMs >= 90) { slide = null; stalledMs = 0; }
     } else {
       stalledMs = 0;
     }
 
+    // THE STAIRS OF THE KEEP. Stepping onto one moves you a floor, the way a
+    // doorway in a Zelda dungeon does — no key to press, because a staircase
+    // you have to ask permission to use is a staircase you will walk past. The
+    // debounce is the whole of the safety: arriving on a floor puts you ON its
+    // opposite stair, and without it you would ride up and down forever.
+    if (worldArea === AREAS.elderwatch && clockMs - climbedAt > 400) {
+      const tx = player.tileX();
+      const ty = player.tileY();
+      // THE STEP YOU ARRIVED ON DOES NOT COUNT until you leave it. Every floor
+      // puts you down on its opposite stair, so without this she would arrive
+      // and immediately take the same flight back — a lift stuck between two
+      // floors.
+      if (climbTile && (climbTile.x !== tx || climbTile.y !== ty)) climbTile = null;
+      const here = tileAtSafe(tx, ty);
+      const up = here === TILE_TYPES.stair;
+      const down = here === TILE_TYPES.ladder;
+      if (!climbTile && (up || down) && (towerFloor > 0 || up)) {
+        climbedAt = clockMs;
+        climbTile = { x: tx, y: ty };
+        if (typeof api.onClimbTower === 'function') {
+          try { api.onClimbTower(up ? 1 : -1); } catch (err) { console.error('[world] onClimbTower', err); }
+        }
+      }
+    }
+
     // THE WARDEN'S LINE. Checked after the move, so being caught is about where
     // you ended up rather than where you set off from.
-    if (AREA_PUZZLES[worldArea] && patrolSees() && clockMs - caughtAt > 1500) {
+    if (puzzleSet() && patrolSees() && clockMs - caughtAt > 1500) {
       caughtAt = clockMs;
       slide = null;
       toast(worldArea === AREAS.peaks
@@ -2826,7 +2963,7 @@ export function createGame(canvas) {
       if (typeof api.onWardenCaught === 'function') {
         try { api.onWardenCaught(); } catch (err) { console.error('[world] onWardenCaught', err); }
       }
-      const door = AREA_PUZZLES[worldArea].door;
+      const door = puzzleSet().door;
       player.setTile(door.x, door.y);
       snapCamera();
     }
@@ -3136,7 +3273,11 @@ export function createGame(canvas) {
     if (radiusTiles > 0) {
       pools.push({
         x: (player.centerX() - camX) * S,
-        y: (player.centerY() - camY) * S,
+        // LIFTED WITH HER. A tile on the top terrace is drawn 48 world pixels
+        // up the screen and so is she — but the lantern pool was centred on her
+        // UNLIFTED position, so in the summit cave her light appeared three
+        // tiles below her, outside the room she was standing in.
+        y: (player.centerY() - camY - drawLift) * S,
         r: Math.max(1, radiusTiles * TILE * S),
       });
     }
@@ -3433,10 +3574,43 @@ export function createGame(canvas) {
             variant = e ? harvestedSprite(e.nodeType) : null;
           }
         }
+        // INSIDE THE KEEP, the room is this floor and everything around it is
+        // the bailey, drawn from the ground map and greyed afterwards. You are
+        // on one floor of one tower and the rest of Elderwatch is below you.
+        const src = (towerFloor > 0 && groundWorld && !insideTower(tx, ty))
+          ? groundWorld : world;
         if (variant) drawSprite(ctx, variant, px, py, S);
-        else drawTile(ctx, forceTile >= 0 ? forceTile : world.tiles[rowBase + tx], tx, ty, px, py, S);
+        else drawTile(ctx, forceTile >= 0 ? forceTile : src.tiles[rowBase + tx], tx, ty, px, py, S);
         if (over) drawSprite(ctx, over, px, py, S);
       }
+    }
+
+    // --- THE KEEP GREYS THE WORLD OUT AROUND IT.
+    //
+    // Painted after the ground and before anything standing on it, so the
+    // bailey goes flat and cold while the room you are in keeps its colour. The
+    // hole is the tower's circle, feathered at the wall so the edge reads as
+    // distance rather than as a cut-out.
+    if (towerFloor > 0) {
+      const cx = (TOWER.cx * TILE + TILE / 2 - camX) * S;
+      const cy = (TOWER.cy * TILE + TILE / 2 - camY) * S;
+      const r = (TOWER.r + 1) * TILE * S;
+      ctx.save();
+      let hole = null;
+      try { hole = ctx.createRadialGradient(cx, cy, r * 0.86, cx, cy, r); } catch { hole = null; }
+      if (hole) {
+        hole.addColorStop(0, 'rgba(26,26,34,0)');
+        hole.addColorStop(1, 'rgba(26,26,34,0.82)');
+        ctx.fillStyle = hole;
+        ctx.fillRect(cx - r, cy - r, r * 2, r * 2);
+      }
+      ctx.fillStyle = 'rgba(26,26,34,0.82)';
+      // The four bands outside the circle's bounding box.
+      ctx.fillRect(0, 0, canvas.width, Math.max(0, cy - r));
+      ctx.fillRect(0, cy + r, canvas.width, Math.max(0, canvas.height - (cy + r)));
+      ctx.fillRect(0, Math.max(0, cy - r), Math.max(0, cx - r), r * 2);
+      ctx.fillRect(cx + r, Math.max(0, cy - r), Math.max(0, canvas.width - (cx + r)), r * 2);
+      ctx.restore();
     }
 
     // --- the tile the scholar is facing, when it can be harvested
@@ -3451,12 +3625,12 @@ export function createGame(canvas) {
     //     sight. Both are painted on the GROUND, and so both go down BEFORE the
     //     depth-sorted pass — drawn after it they were laid over the scholar's
     //     feet, which read as her standing under the floor.
-    if (AREA_PUZZLES[worldArea]) {
+    if (puzzleSet()) {
       const at = (x, y) => ({
         px: Math.round((x * TILE - camX) * S),
         py: Math.round((y * TILE - camY - liftAt(x, y)) * S),
       });
-      for (const pl of platesFor(worldArea)) {
+      for (const pl of (towerFloor > 0 ? (puzzleSet().plates || []) : platesFor(worldArea))) {
         if (!plateHeld(pl.x, pl.y)) continue;
         const q = at(pl.x, pl.y);
         drawSprite(ctx, PLATE_DOWN_SPRITE, q.px, q.py, S);
@@ -3491,7 +3665,7 @@ export function createGame(canvas) {
     // of covered her from the shins up — she disappeared behind the very rock
     // she was pushing. They are objects in the room, so they queue up with
     // everything else in the room and are drawn back-to-front by foot position.
-    if (AREA_PUZZLES[worldArea]) {
+    if (puzzleSet()) {
       for (const b of boulderList()) {
         drawables.push({ sortY: (b.y + 1) * TILE - liftAt(b.x, b.y), kind: 'k', ref: b });
       }
@@ -3499,7 +3673,10 @@ export function createGame(canvas) {
         if (hasGear(g.gear)) continue;
         drawables.push({ sortY: (g.y + 1) * TILE - liftAt(g.x, g.y), kind: 'g', ref: g });
       }
-      for (const q of (QUEST_SITES[worldArea] || [])) {
+      const sites = worldArea === AREAS.elderwatch
+        ? TOWER_ITEMS.filter((q) => q.floor === towerFloor)
+        : (QUEST_SITES[worldArea] || []);
+      for (const q of sites) {
         if (holdsItem(q.item)) continue;
         drawables.push({ sortY: (q.y + 1) * TILE - liftAt(q.x, q.y), kind: 'q', ref: q });
       }
@@ -3723,7 +3900,7 @@ export function createGame(canvas) {
         drawTextOutlined(ctx, label, qx, qy, ts, PALETTE.accent, '#0d0f16');
         lastPrompts.push(label);
       }
-      const lock = DOOR_KEYS[worldArea];
+      const lock = lockHere();
       const f = player.facingTile();
       if (lock && lock.x === f.x && lock.y === f.y && !holdsItem(lock.item)) {
         const def = QUEST_ITEMS[lock.item] || { name: lock.item };
@@ -3765,23 +3942,10 @@ export function createGame(canvas) {
           lastPrompts.push(label);
         }
       }
-      // THE ROAD EAST. Standing on its last stretch, the world says where it
-      // goes — and what it says changes once the Wise Man has named the place,
-      // so the road is a question first and an errand afterwards.
-      if (player.tileY() === EAST_ROAD.y && player.tileX() >= EAST_ROAD.x1 - 3) {
-        const told = !!(state && state.wiseMan && state.wiseMan.spoken);
-        const label = told
-          ? 'the road east — Elderwatch, and the Hall of Keeping'
-          : 'an old road, running east into the weather';
-        const w = textWidth(label, ts);
-        const rx = clampToCanvas(
-          Math.round((EAST_ROAD.x1 * TILE + TILE / 2 - camX) * S - w / 2), w
-        );
-        const ry = Math.round((EAST_ROAD.y * TILE - camY - liftAt(EAST_ROAD.x1, EAST_ROAD.y)) * S) - 12 * S;
-        drawTextOutlined(ctx, label, rx, ry, ts,
-          told ? PALETTE.accent : PALETTE.textDim, '#0d0f16');
-        lastPrompts.push(label);
-      }
+      // THE ROAD EAST HAS NO PROMPT OF ITS OWN. It used to name itself and
+      // where it went, which was right while it was a dead end — but it ends at
+      // a crossing now, and the crossing's own "E take the road east" was
+      // already there. Two labels over one tile is one label too many.
       // A ladder you cannot climb has to SAY it is a ladder, or it reads as
       // decoration and the mountain reads as a dead end.
       const f2 = player.facingTile();

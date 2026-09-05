@@ -12,13 +12,33 @@ reads like a mountain is just more mountain. What stops you here is **people**.
 
 ## THE ROUTE, AND WHAT EACH LOCK COSTS
 
+**Outside**, the bailey: cobbles, a well, sheds against the wall, stacked stone,
+and the round Keep in the middle of it.
+
 | Lock | Opened by |
 |---|---|
 | The outer wall | the front gate is barred for the whole visit; the **culvert** under the west wall is cracked — and the **Stone Hammer** is already in your pack, off the mountain |
-| The yard | two **watchmen** on patrol, each with a line of sight. Caught, you are put back in the culvert |
-| The guardroom | a barred door held by two plates — the **barrels** are the mountain's boulders in another coat |
-| The keep door | the **Brass Key**, off the guardroom wall |
-| The Hall of Keeping | the Standard on its stand. Taking it is the errand |
+
+**Inside the Keep**, four floors, climbed one at a time. Stepping onto a stair
+takes you up; there is no key to press, because a staircase you have to ask
+permission to use is a staircase you walk past.
+
+| Floor | | Its lock |
+|---|---|---|
+| 1 | **The Guardroom** | two watchmen on a ring corridor — time them |
+| 2 | **The Cistern** | two barrels onto two plates opens the gate to the stair |
+| 3 | **The Armoury** | a bricked arch — the Stone Hammer — and the **Brass Key** behind it |
+| 4 | **The Hall of Keeping** | a locked door — the Brass Key — and the **Ashen Standard** |
+
+## THE TOWER GREYS THE WORLD OUT
+
+A floor is a full-size map with one round room cut into it, so nothing
+downstream — collision, the camera, the tile loop — needs to know the tower
+exists. The bailey is still DRAWN around the room, and greyed: you are on one
+floor of one tower and the rest of Elderwatch is somewhere below you.
+
+Four rooms at the same coordinates is a thing a flat fort could not do, and it
+is the reason the keep became a tower.
 
 Old gear opening a new door is the cheapest way to make a journey feel like one:
 the first thing Elderwatch asks of you is the last thing the mountain gave you.

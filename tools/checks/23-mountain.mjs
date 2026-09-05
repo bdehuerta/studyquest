@@ -182,6 +182,54 @@ export default {
     },
     { type: 'screenshot', file: 'v7-terrace.png' },
 
+    { type: 'note', text: 'THE SLIDE, WALKED. No teleports past this line — held keys only.' },
+    {
+      // The ONLY teleport is the setup: she is put at the head of the stair she
+      // would have climbed out of the labyrinth. Everything after this is the
+      // keyboard, because "the route exists" and "the route can be driven" are
+      // different claims and only the second one is the game.
+      type: 'eval', label: 'stand at the top of the stair, on the tarn',
+      expr: "window.__sqWorld.setPlayerTile(23, 31); return 'ok';",
+    },
+    { type: 'wait', ms: 600 },
+    { type: 'hold', key: 'd', ms: 1800, label: 'east — the ice takes her' },
+    { type: 'wait', ms: 400 },
+    {
+      type: 'assert', label: 'and sets her down against the first pillar',
+      expr: "const t = window.__sqWorld.getPlayerTile(); return t.x + ',' + t.y;",
+      equals: '25,31',
+    },
+    { type: 'hold', key: 'w', ms: 1800, label: 'north' },
+    { type: 'wait', ms: 400 },
+    {
+      type: 'assert', label: 'under the second',
+      expr: "const t = window.__sqWorld.getPlayerTile(); return t.x + ',' + t.y;",
+      equals: '25,28',
+    },
+    { type: 'hold', key: 'd', ms: 1800, label: 'east again — onto the island' },
+    { type: 'wait', ms: 400 },
+    {
+      type: 'assert', label: 'she is standing on the island, on solid snow',
+      expr: "const t = window.__sqWorld.getPlayerTile(); return t.x + ',' + t.y;",
+      equals: '29,28',
+    },
+    {
+      // She is facing east, and the cache is the tile in front of her — no need
+      // to step onto it, and stepping would put her back on the ice.
+      type: 'eval', label: 'take the Crampons',
+      expr: `
+        window.__sqCr = 'pending';
+        Promise.resolve(window.__sqWorld.onTakeGear('crampons'))
+          .then((j) => { window.__sqCr = j; }, (e) => { window.__sqCr = { ok: false, error: e.message }; });
+        return 'sent';
+      `,
+    },
+    {
+      type: 'waitFor', timeoutMs: 8000, label: 'THE CRAMPONS, WON BY PLAYING THE PUZZLE',
+      expr: "if (window.__sqCr === 'pending') return false; if (!window.__sqCr.ok) throw new Error(window.__sqCr.error); return true;",
+    },
+    { type: 'screenshot', file: 'v7-island.png' },
+
     { type: 'note', text: 'STOPPING AGAINST A ROCK MUST NOT BE THE END OF THE ROAD.' },
     {
       type: 'eval', label: 'stand on the tarn, west of a pillar',
@@ -271,6 +319,18 @@ export default {
           return window.__sqWorld.probeStep(R.x0 - 1, R.y, R.x0, R.y) === false;
         });
       `,
+      equals: true,
+    },
+    {
+      // AND IT REACHES THE CROSSING. The road was carved to the crossing's
+      // THRESHOLD column rather than to the map's edge, so its last tile was
+      // border crag: the road ran into a wall with the prompt showing over it.
+      type: 'assert', label: 'and runs all the way to the tile you cross on',
+      expr: `${fill(ARRIVE[0], ARRIVE[1], true)}`.replace("return [...seen].join(' ');",
+        `return import('/shared/constants.js').then((C) => {
+           const R = C.EAST_ROAD;
+           return seen.has((C.WORLD_W - 1) + ',' + R.y);
+         });`),
       equals: true,
     },
     {

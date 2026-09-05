@@ -200,6 +200,7 @@ const api = {
   // v7: the mountain.
   takeGear: (gear) => post('/api/reaches/gear', { gear }),
   takeQuestItem: (item) => post('/api/quest/take', { item }),
+  climbTower: (dir) => post('/api/tower/climb', { dir }),
   pushBoulder: (x, y, dx, dy) => post('/api/reaches/push', { x, y, dx, dy }),
   wardenReset: () => post('/api/reaches/reset', {}),
   wardenBeaten: () => post('/api/reaches/warden', {}),
@@ -318,6 +319,22 @@ game.onTakeGear = async (gear) => {
   game.toast(r.blurb, '#9aa0aa');
   if (r.xp > 0) game.toast(`+${r.xp} xp`, '#5ad18a');
   return r;
+};
+
+// Stepping onto a stair in the Keep. Awaited position first: the server checks
+// which floor you are on, and it only knows where you are if you have told it.
+let climbing = false;
+game.onClimbTower = async (dir) => {
+  if (climbing) return null;
+  climbing = true;
+  try {
+    await commitPosition();
+    const r = await api.climbTower(dir);
+    if (!r || !r.ok) { game.toast((r && r.error) || 'the stair will not have you', '#a494c4'); return r; }
+    if (r.floor > 0) game.toast(r.name.toUpperCase(), '#e8b64c');
+    else game.toast('the bailey', '#9aa0aa');
+    return r;
+  } finally { climbing = false; }
 };
 
 game.onTakeQuestItem = async (item) => {

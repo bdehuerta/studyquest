@@ -80,6 +80,9 @@ import {
   AREA_PUZZLES,
   bouldersFor,
   platesFor,
+  TOWER,
+  TOWER_FLOORS,
+  TOWER_ITEMS,
 } from '../shared/constants.js';
 
 import {
@@ -1288,6 +1291,9 @@ export async function handleApi(pathname, body, state, save) {
       // a slot, and they are read and written through the server because the
       // page's localStorage is keyed by an origin whose PORT changes on every
       // launch. See SETTINGS_PATH in slots.js.
+      case '/api/tower/climb':
+        return routeTowerClimb(b, state, persist);
+
       case '/api/quest/take':
         return routeQuestTake(b, state, persist);
 
@@ -3253,10 +3259,15 @@ function reachesOf(state) {
  * through the same routes and the same store — but two maps may both have a
  * boulder called `yard_a`, so the key carries the map.
  */
-const ALL_BOULDERS = Object.freeze(
-  Object.keys(AREA_PUZZLES).flatMap((area) =>
-    bouldersFor(area).map((b) => ({ key: `${area}:${b.id}`, area, id: b.id, x: b.x, y: b.y })))
-);
+const ALL_BOULDERS = Object.freeze([
+  ...Object.keys(AREA_PUZZLES).flatMap((area) =>
+    bouldersFor(area).map((b) => ({ key: `${area}:${b.id}`, area, id: b.id, x: b.x, y: b.y }))),
+  // ...and one set per floor of the Keep. Two floors may both have a boulder
+  // called `cistern_a`, so the key carries the floor as well as the map.
+  ...TOWER_FLOORS.flatMap((f) => (f.boulders || []).map((b) => ({
+    key: `${AREAS.elderwatch}:f${f.n}:${b.id}`, area: AREAS.elderwatch, id: b.id, x: b.x, y: b.y,
+  }))),
+]);
 
 function hasGear(state, id) {
   return reachesOf(state).gear.indexOf(id) !== -1;
@@ -3295,9 +3306,14 @@ function routeReachesGear(b, state, save) {
  */
 function routeReachesPush(b, state, save) {
   const area = areaOf(state);
-  if (!AREA_PUZZLES[area]) return fail('there is nothing to push here.');
+  const floor = towerFloorOf(state);
+  const scope = floor > 0 ? `${area}:f${floor}:` : `${area}:`;
+  if (!AREA_PUZZLES[area] && floor === 0) return fail('there is nothing to push here.');
   const r = reachesOf(state);
-  const mine = (k) => k.indexOf(`${area}:`) === 0;
+  // Only the boulders on THIS floor of THIS map. A prefix, not a filter over
+  // everything: the Keep has a set per floor and they share their names.
+  const mine = (k) => k.indexOf(scope) === 0
+    && (floor > 0 || k.indexOf(':f') === -1);
   const x = Math.round(num(b.x) ?? NaN);
   const y = Math.round(num(b.y) ?? NaN);
   const dx = Math.round(num(b.dx) ?? 0);
@@ -3331,10 +3347,15 @@ function routeReachesPush(b, state, save) {
 /** Which plates have a boulder on them right now. */
 function platesHeld(state, area = areaOf(state)) {
   const r = reachesOf(state);
+  const floor = area === AREAS.elderwatch ? towerFloorOf(state) : 0;
+  const scope = floor > 0 ? `${area}:f${floor}:` : `${area}:`;
+  const plates = floor > 0
+    ? ((TOWER_FLOORS[floor - 1] || {}).plates || [])
+    : platesFor(area);
   const held = [];
-  for (const p of platesFor(area)) {
-    const on = Object.entries(r.boulders)
-      .some(([k, bl]) => k.indexOf(`${area}:`) === 0 && bl && bl.x === p.x && bl.y === p.y);
+  for (const p of plates) {
+    const on = Object.entries(r.boulders).some(([k, bl]) =>
+      k.indexOf(scope) === 0 && bl && bl.x === p.x && bl.y === p.y);
     if (on) held.push(p.id || `${p.x},${p.y}`);
   }
   return held;
@@ -3387,7 +3408,54 @@ function routeReachesWarden(b, state, save) {
   return ok({ state, beaten: true, xp });
 }
 
+/** Which floor of the keep the scholar is on, 0 for the bailey. */
+function towerFloorOf(state) {
+  if (!isObj(state.tower)) state.tower = { floor: 0 };
+  const f = Math.round(num(state.tower.floor) ?? 0);
+  return f > 0 && f <= TOWER.floors ? f : 0;
+}
+
 /**
+ * POST /api/tower/climb — up or down one floor of the Keep.
+ *
+ * The client raises this when she steps onto a stair; the server owns which
+ * floor she is on and where she lands. Landing is the OTHER floor's opposite
+ * stair, so a climb reads as continuous — you come up where you would have come
+ * up, not in the middle of the room.
+ */
+function routeTowerClimb(b, state, save) {
+  if (areaOf(state) !== AREAS.elderwatch) return fail('there is no keep here to climb.');
+  const dir = num(b.dir) >= 0 ? 1 : -1;
+  const from = towerFloorOf(state);
+  const to = from + dir;
+  if (to < 0 || to > TOWER.floors) return fail('the stair goes no further.');
+
+  if (to === 0) {
+    state.tower.floor = 0;
+    state.player.x = TOWER.doorX;
+    state.player.y = TOWER.doorY;
+    pushLog(state, 'You come back down into the bailey.', 'quest');
+    save(state);
+    return ok({ state, floor: 0, at: { x: state.player.x, y: state.player.y } });
+  }
+
+  const def = TOWER_FLOORS[to - 1];
+  // Arriving from below you stand on that floor's DOWN stair; from above, on
+  // its UP stair. Either way you arrive on the step you would have arrived on.
+  const at = dir > 0 ? def.down : def.up;
+  state.tower.floor = to;
+  if (at) {
+    state.player.x = at.x;
+    state.player.y = at.y;
+  }
+  if (from === 0) pushLog(state, 'The door of the Keep gives, and the stair turns away above you.', 'quest');
+  pushLog(state, `${def.name} — floor ${to} of the Keep.`, 'quest');
+  save(state);
+  return ok({ state, floor: to, name: def.name, at: { x: state.player.x, y: state.player.y } });
+}
+
+/**
+ * POST /api/quest/take/**
  * POST /api/quest/take — lift a quest item off the ground.
  *
  * The same bargain as everything else out in the world: the client knows the
@@ -3399,7 +3467,12 @@ function routeReachesWarden(b, state, save) {
  */
 function routeQuestTake(b, state, save) {
   const area = areaOf(state);
-  const sites = QUEST_SITES[area] || [];
+  const floor = towerFloorOf(state);
+  // Elderwatch's two are up the Keep, one floor each; everywhere else they lie
+  // on the map.
+  const sites = area === AREAS.elderwatch
+    ? TOWER_ITEMS.filter((q) => q.floor === floor)
+    : (QUEST_SITES[area] || []);
   const wanted = typeof b.item === 'string' ? b.item : '';
   const site = sites.find((q) => q.item === wanted);
   if (!site) return fail(`there is no ${wanted || 'such thing'} to be had here.`);
