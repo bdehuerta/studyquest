@@ -2059,6 +2059,27 @@ const STAIR_1 = [
   'dd111111111111dd',
 ];
 
+// A LOCKED DOOR: banded oak with an iron plate and a keyhole you can read from
+// across the room. It has to look like a KEY opens it, not a lever or a plate.
+const LOCKDOOR_0 = [
+  '0000000000000000',
+  '0kkllkkllkkllkk0',
+  '0kllkkllkkllkkl0',
+  '0kkQQQQQQQQQQkk0',
+  '0klQzzzzzzzzQlk0',
+  '0kkQzzz00zzzQkk0',
+  '0klQzzz00zzzQlk0',
+  '0kkQzzzz00zzQkk0',
+  '0klQzzzz00zzQlk0',
+  '0kkQzzzzzzzzQkk0',
+  '0klQQQQQQQQQQlk0',
+  '0kkllkkllkkllkk0',
+  '0kllkkllkkllkkl0',
+  '0kkllkkllkkllkk0',
+  '0kllkkllkkllkkl0',
+  '0000000000000000',
+];
+
 // A ROAD IN THE SNOW: grit and packed ice trodden into a paler band, with the
 // snow still lying at its edges. Warm greys, so it reads as a way through
 // rather than as another kind of ground.
@@ -2354,6 +2375,7 @@ export const SPRITES = {
     rimewall: makeSprite(RIMEWALL_0, PAL, T16R),
     brokenwall: makeSprite(BROKENWALL_0, PAL, T16R),
     snowroad: makeSprite(SNOWROAD_0, PAL, T16),
+    lockdoor: makeSprite(LOCKDOOR_0, PAL, T16R),
     // v2 — harvested variants, drawn in place of a depleted node.
     stump: makeSprite(TREE_TILE_0, PAL, T16), // see art.js SPRITES3.stump
     bloomstump: makeSprite(BLOOM_STUMP_0, PAL, T16),
@@ -2481,11 +2503,77 @@ const GEAR_CACHE_0 = [
   '................',
 ];
 
+// A WATCHMAN of Elderwatch: helmet, dark coat, a spear held upright. Human, and
+// meant to read as bored rather than as a monster — the garrison has forgotten
+// what it is guarding.
+const WATCH_A = [
+  '................',
+  '.....000000.....',
+  '....0QQQQQQ0..Q.',
+  '...0QGGGGGGQ0.Q.',
+  '...0Qtttttt Q.Q.',
+  '...0Qt00t00tQ.Q.',
+  '...0Qtttttt Q.Q.',
+  '....0uuuuuu0..Q.',
+  '...0uuvvvvuu0.Q.',
+  '..0uuuvvvvuuu0Q.',
+  '..0uuuvvvvuuu0Q.',
+  '..0uuuuuuuuuu0Q.',
+  '...0uu0000uu0.Q.',
+  '...0uu0..0uu0.Q.',
+  '...000....000.Q.',
+  '................',
+];
+const WATCH_B = [
+  '................',
+  '.....000000.....',
+  '....0QQQQQQ0..Q.',
+  '...0QGGGGGGQ0.Q.',
+  '...0Qtttttt Q.Q.',
+  '...0Qt00t00tQ.Q.',
+  '...0Qtttttt Q.Q.',
+  '....0uuuuuu0..Q.',
+  '...0uuvvvvuu0.Q.',
+  '..0uuuvvvvuuu0Q.',
+  '..0uuuvvvvuuu0Q.',
+  '..0uuuuuuuuuu0Q.',
+  '....0uu00uu0..Q.',
+  '....0uu00uu0..Q.',
+  '....000..000..Q.',
+  '................',
+];
+
+// THE ASHEN STANDARD on its stand: a grey banner on a pole, dusty gold trim.
+const STANDARD_0 = [
+  '.......00.......',
+  '......0BB0......',
+  '.....0BGGB0.....',
+  '....0BGGGGB0....',
+  '...0BGGGGGGB0...',
+  '...0BGHHHHGB0...',
+  '...0BGHooHGB0...',
+  '...0BGHooHGB0...',
+  '...0BGHHHHGB0...',
+  '...0BGGGGGGB0...',
+  '....0BGGGGB0....',
+  '.....0BGGB0.....',
+  '......0kk0......',
+  '......0kk0......',
+  '.....00kk00.....',
+  '.....0dddd0.....',
+];
+
 /** v7 — things that stand on the mountain rather than being part of it. */
 export const BOULDER_SPRITE = makeSprite(BOULDER_0, PAL, { w: 16, h: 16, label: 'boulder' });
 export const PLATE_DOWN_SPRITE = makeSprite(PLATE_DOWN_0, PAL, { w: 16, h: 16, label: 'plateDown' });
 export const WISEMAN_SPRITE = makeSprite(WISEMAN_0, PAL, { w: 16, h: 16, label: 'wiseman' });
 export const GEAR_SPRITE = makeSprite(GEAR_CACHE_0, PAL, { w: 16, h: 16, label: 'gearCache' });
+export const STANDARD_SPRITE = makeSprite(STANDARD_0, PAL, { w: 16, h: 16, label: 'standard' });
+/** The Elderwatch watch, on their rounds. Two frames, like the Warden. */
+export const WATCH_FRAMES = Object.freeze([
+  makeSprite(WATCH_A, PAL, { w: 16, h: 16, label: 'watch0' }),
+  makeSprite(WATCH_B, PAL, { w: 16, h: 16, label: 'watch1' }),
+]);
 /** The Warden breathes: two frames, swapped on its own clock. */
 export const WARDEN_FRAMES = Object.freeze([
   makeSprite(WARDEN_A, PAL, { w: 16, h: 16, label: 'warden0' }),
@@ -2496,7 +2584,7 @@ const TILE_NAME_BY_ID = [
   'grass', 'path', 'water', 'stone', 'tree', 'sand', 'bluetree',
   'snow', 'ice', 'snowpine', 'crag',
   'cliff', 'ladder', 'stair', 'crackedcrag', 'icegate', 'plate', 'rockfloor',
-  'rimewall', 'snowroad',
+  'rimewall', 'snowroad', 'lockdoor',
 ];
 
 /**

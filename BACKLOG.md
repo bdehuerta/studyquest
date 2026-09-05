@@ -1456,6 +1456,48 @@ the halo also covers, and it failed — correctly. The test was wrong, not the
 rule.
 
 ---
+## DONE 2026-09-05 (3) — ELDERWATCH, the third map
+
+The Wise Man's errand made good: the Ashen Standard, in the Hall of Keeping,
+behind a garrison that has forgotten what it is guarding. Design and outcome in
+ELDERWATCH.md.
+
+BUILT AS THE OPPOSITE OF THE MOUNTAIN — flat, one layer everywhere, walled, and
+made of rooms. No lift, no cliff face, no ledge: the Reaches' whole vocabulary
+is deliberately absent, because a fort that reads like a mountain is just more
+mountain. What stops you is people.
+
+THE ROUTE: the barred gate is never the way in — the cracked CULVERT under the
+west wall is, and the Stone Hammer that opens it is the last thing the mountain
+gave you. Then two watchmen with sight-lines; then a barred door held by two
+plates (the barrels are the mountain's boulders in another coat); then the Brass
+Key; then the keep.
+
+WHAT IT COST THE ENGINE, and all of it was generalisation rather than addition:
+  * CROSSINGS, a table. Two maps could be a pair of constants; three cannot, and
+    the Reaches have a door at each end.
+  * AREA_PUZZLES, keying boulders, plates, gates and the door a patrol throws
+    you back to. Boulder state is now keyed `area:id` — two maps may both have a
+    `yard_a`.
+  * `pace(beat)`, a patrol as a pure function of the clock. The Warden was the
+    first one; the watch are two more.
+  * Keys and locked doors — the first gate here that a KEY opens rather than a
+    level, a plate or a tool.
+
+AND THE SAME BUG, TWICE, A WEEK APART: a gate is a SOLID TILE, so the ordinary
+solidity test blocks it however its plates stand. I fixed that for the ice gate
+on the mountain and then wrote the keep door with the identical hole — its own
+rule said yes and `isSolidHere` said no immediately afterwards. Both now go
+through one predicate, asked before the terrain, on every map.
+
+Three whitelists also had to stop being two-way switches (`areaOf`, `stateArea`,
+and the boulder store): with three maps, "not peaks" no longer means "home", and
+a save standing in Elderwatch was quietly redrawn as the Home Block.
+
+25 suites. The new one walks the whole fort through `probeStep` — the function
+the game's collision actually calls — and asserts after each lock that the next
+thing is reachable and the one after it is not.
+
 ## DONE 2026-09-05 (2) — the ice trap, properly this time; and the repo
 
 TWO WAYS TO GET STUCK, AND THE SECOND ONE WAS THE REAL ONE.

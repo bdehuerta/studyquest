@@ -3,6 +3,7 @@
 // camera, fixed-timestep loop, render order, toasts and interaction.
 
 import { buildReaches as buildReachesMap } from './reaches.js';
+import { buildElderwatch as buildElderwatchMap } from './elderwatch.js';
 import {
   TILE,
   WORLD_W,
@@ -17,8 +18,9 @@ import {
   BLOOM,
   parseTileKey,
   LAYER_LIFT, LAYER_NAMES, LAYER_COUNT,
-  REACHES_GEAR, GEAR_SITES, REACHES_PLATES, REACHES_GATES, REACHES_BOULDERS,
-  EAST_ROAD,
+  REACHES_GEAR, GEAR_SITES,
+  EAST_ROAD, AREA_PUZZLES, bouldersFor, platesFor,
+  ELDERWATCH, ELDERWATCH_WATCH, crossingAt, QUEST_SITES, DOOR_KEYS, QUEST_ITEMS,
   WARDEN, WISE_CAVE,
   HUT,
   BOAT,
@@ -55,6 +57,8 @@ import {
   PLATE_DOWN_SPRITE,
   WISEMAN_SPRITE,
   GEAR_SPRITE,
+  STANDARD_SPRITE,
+  WATCH_FRAMES,
   WARDEN_FRAMES,
   drawTextOutlined,
   textWidth,
@@ -337,6 +341,9 @@ export function createWorld(seed, area) {
   // cannot make a labyrinth, a sight-line or a slide you have to read before
   // you commit to it. See world/reaches.js.
   if (area === AREAS.peaks) return buildReachesMap(s);
+  // Elderwatch is flat — one layer everywhere, no lift, no cliff face, no
+  // ledge. The mountain's whole vocabulary is deliberately absent from it.
+  if (area === AREAS.elderwatch) return buildElderwatchMap(s);
 
   for (let y = 0; y < WORLD_H; y++) {
     for (let x = 0; x < WORLD_W; x++) {
@@ -637,7 +644,10 @@ export function createGame(canvas) {
   /** Which map the save says we are on. Older saves have no area at all. */
   function stateArea() {
     const a = state && state.player && state.player.area;
-    return a === AREAS.peaks ? AREAS.peaks : AREAS.home;
+    // A whitelist, not a two-way switch. With three maps, "not peaks" no longer
+    // means "home", and a save standing in Elderwatch was quietly redrawn as
+    // the Home Block.
+    return (a === AREAS.peaks || a === AREAS.elderwatch) ? a : AREAS.home;
   }
 
   /**
@@ -786,10 +796,12 @@ export function createGame(canvas) {
       layerName: LAYER_NAMES[layerAt(player.tileX(), player.tileY())] || null,
       gear: reachesState().gear.slice(),
       boulders: boulderList(),
-      platesHeld: [...REACHES_PLATES, ...WARDEN.plates]
+      platesHeld: platesFor(worldArea)
         .filter((pl) => plateHeld(pl.x, pl.y))
         .map((pl) => pl.id || `${pl.x},${pl.y}`),
-      gateOpen: Object.fromEntries(Object.keys(REACHES_GATES).map((k) => [k, gateOpen(k)])),
+      gateOpen: Object.fromEntries(
+        Object.keys((AREA_PUZZLES[worldArea] || { gates: {} }).gates).map((k) => [k, gateOpen(k)])
+      ),
       warden: wardenState(),
       wardenBeaten: reachesState().wardenBeaten,
       seen: wardenSees(),
@@ -882,6 +894,8 @@ export function createGame(canvas) {
     onFish: null,
     /** fn(gearId) -> void. Raised by E over a piece of Reaches gear. */
     onTakeGear: null,
+    /** fn(itemId) -> void. Raised by E over a quest item lying on the ground. */
+    onTakeQuestItem: null,
     /** fn(x, y, dx, dy) -> void. Raised by E against a boulder. */
     onPushBoulder: null,
     /** fn() -> void. Raised when the Warden's line falls across you. */
@@ -1374,19 +1388,33 @@ export function createGame(canvas) {
     // solidity test blocks it whatever its plates say. The first cut had this
     // check after `isSolidHere`, which meant the gate never opened at all; the
     // suite passed anyway because the old map let you walk round it.
-    if (worldArea === AREAS.peaks) {
-      if (gateIsOpen(tx, ty)) return false;
-      if (mountainBlocks(tx, ty)) return true;
-    }
+    if (gateIsOpen(tx, ty)) return false;
+    if (AREA_PUZZLES[worldArea] && mountainBlocks(tx, ty)) return true;
     if (isSolidHere(tx, ty)) return true;
     return occupied.has(tx + ',' + ty);
   }
 
-  /** Is this tile an ice gate whose plates are all held? */
+  /**
+   * A DOOR THAT IS OPEN TO YOU, whatever kind of door it is.
+   *
+   * Gates and locked doors are SOLID TILES — that is what makes them doors — so
+   * the ordinary solidity test blocks them however their plates or their locks
+   * stand. Both have to be answered before the terrain is consulted, and both
+   * have to be answered in ONE place: the ice gate was written first and the
+   * keep door repeated the same mistake a week later, each silently blocked by
+   * `isSolidHere` after its own rule had said yes.
+   */
   function gateIsOpen(tx, ty) {
-    if (tileAtSafe(tx, ty) !== TILE_TYPES.icegate) return false;
-    const name = gateAt(tx, ty);
-    return !!name && gateOpen(name);
+    const t = tileAtSafe(tx, ty);
+    if (t === TILE_TYPES.icegate) {
+      const name = gateAt(tx, ty);
+      return !!name && gateOpen(name);
+    }
+    if (t === TILE_TYPES.lockdoor) {
+      const lock = DOOR_KEYS[worldArea];
+      return !!lock && lock.x === tx && lock.y === ty && holdsItem(lock.item);
+    }
+    return false;
   }
 
   /**
@@ -1427,6 +1455,12 @@ export function createGame(canvas) {
       const name = gateAt(tx, ty);
       if (!name || !gateOpen(name)) return true;
       return false;
+    }
+    // A LOCKED DOOR opens for whoever carries its key, and for nobody else.
+    if (t === TILE_TYPES.lockdoor) {
+      const lock = DOOR_KEYS[worldArea];
+      if (lock && lock.x === tx && lock.y === ty) return !holdsItem(lock.item);
+      return true;
     }
     // Cracked crag stops being a wall once it has been broken — which the
     // gather system already records, per map, as a felled node.
@@ -2143,18 +2177,18 @@ export function createGame(canvas) {
   }
 
   /** Standing on the crossing column, in the gap rows? */
+  /**
+   * Standing on a way out of this map?
+   *
+   * Read off the CROSSINGS table rather than from a pair of constants: there
+   * are three maps now and the Reaches have a door at each end, so "which way
+   * out is this" is a question with more than one answer.
+   */
+  function crossingHere() {
+    return crossingAt(worldArea, player.tileX(), player.tileY());
+  }
   function atCrossing() {
-    const y = player.tileY();
-    // EACH SIDE HAS ITS OWN ROWS. Home's road east stays where it always was,
-    // at the top of the map past the storage hut; the Reaches receive you at
-    // the BOTTOM, at the foot of the mountain, because that is the only place a
-    // climb can begin. Travelling is a teleport, so the two need not line up.
-    const home = worldArea === AREAS.home;
-    const y0 = home ? CROSSING.gapY : CROSSING.peaksEntryY;
-    if (y < y0 || y >= y0 + CROSSING.gapH) return false;
-    return home
-      ? player.tileX() >= CROSSING.homeExitX
-      : player.tileX() <= CROSSING.peaksEntryX;
+    return !!crossingHere();
   }
 
   /** Close enough to speak to the Wise Man, on the peak? */
@@ -2252,8 +2286,11 @@ export function createGame(canvas) {
   function boulderList() {
     const saved = reachesState().boulders;
     const out = [];
-    for (const b of [...REACHES_BOULDERS, ...WARDEN.boulders]) {
-      const at = saved && saved[b.id];
+    for (const b of bouldersFor(worldArea)) {
+      // Keyed `area:id`. Two maps may both have a boulder called `yard_a`, so
+      // the store carries the map; the bare id is read as a fallback so a save
+      // written before Elderwatch existed still finds its own boulders.
+      const at = saved && (saved[`${worldArea}:${b.id}`] || saved[b.id]);
       out.push({
         id: b.id,
         x: at && Number.isFinite(Number(at.x)) ? Number(at.x) : b.x,
@@ -2263,7 +2300,7 @@ export function createGame(canvas) {
     return out;
   }
   function boulderAt(tx, ty) {
-    if (worldArea !== AREAS.peaks) return null;
+    if (!AREA_PUZZLES[worldArea]) return null;
     return boulderList().find((b) => b.x === tx && b.y === ty) || null;
   }
 
@@ -2275,15 +2312,35 @@ export function createGame(canvas) {
 
   /** An ice gate stands until every plate of its name is held. */
   function gateOpen(name) {
-    const plates = REACHES_PLATES.filter((p) => p.gate === name);
+    const plates = platesFor(worldArea).filter((p) => p.gate === name);
     if (!plates.length) return false;
     return plates.every((p) => plateHeld(p.x, p.y));
   }
   function gateAt(tx, ty) {
-    for (const [name, tiles] of Object.entries(REACHES_GATES)) {
+    const set = AREA_PUZZLES[worldArea];
+    if (!set) return null;
+    for (const [name, tiles] of Object.entries(set.gates)) {
       if (tiles.some((t) => t.x === tx && t.y === ty)) return name;
     }
     return null;
+  }
+
+  /** A quest item lying here that has not been taken yet. */
+  function questSiteAt(tx, ty) {
+    const sites = QUEST_SITES[worldArea];
+    if (!sites) return null;
+    const held = (state && state.questItems) || {};
+    return sites.find((q) => q.x === tx && q.y === ty && !(Number(held[q.item]) > 0)) || null;
+  }
+  function questSiteInReach() {
+    const t = { x: player.tileX(), y: player.tileY() };
+    const f = player.facingTile();
+    return questSiteAt(t.x, t.y) || questSiteAt(f.x, f.y);
+  }
+  /** Do you carry this quest item? */
+  function holdsItem(id) {
+    const held = (state && state.questItems) || {};
+    return Number(held[id]) > 0;
   }
 
   /** The gear lying on the ground here, if it has not been picked up. */
@@ -2304,26 +2361,49 @@ export function createGame(canvas) {
    * Herald's ride — no timer, no accumulated drift, and a reload puts it back
    * on the same beat rather than wherever it happened to be.
    */
+  /**
+   * A BEAT, WALKED ON THE CLOCK. Pure function of the time, exactly like the
+   * Herald's ride: no timer, no accumulated drift, and a reload puts the walker
+   * back on the same step rather than wherever it happened to be.
+   */
+  function pace(beat) {
+    const span = Math.abs(beat.toX - beat.fromX);
+    if (span <= 0) return null;
+    const step = Math.floor(clockMs / beat.stepMs) % (span * 2);
+    const forward = step < span;
+    const dir = Math.sign(beat.toX - beat.fromX);
+    const x = forward ? beat.fromX + step * dir : beat.toX - (step - span) * dir;
+    return { x, y: beat.rowY, dir: forward ? dir : -dir, sight: beat.sight };
+  }
+
   function wardenState() {
     if (worldArea !== AREAS.peaks) return null;
     if (reachesState().wardenBeaten) return null;
-    const span = WARDEN.toX - WARDEN.fromX;
-    if (span <= 0) return null;
-    // A there-and-back cycle is 2*span steps.
-    const step = Math.floor(clockMs / WARDEN.stepMs) % (span * 2);
-    const forward = step < span;
-    const x = forward ? WARDEN.fromX + step : WARDEN.toX - (step - span);
-    return { x, y: WARDEN.rowY, dir: forward ? 1 : -1 };
+    return pace(WARDEN);
   }
 
-  /** Are you standing in the line it is looking down? */
-  function wardenSees() {
-    const w = wardenState();
-    if (!w) return false;
-    if (player.tileY() !== w.y) return false;
-    const ahead = (player.tileX() - w.x) * w.dir;
-    return ahead > 0 && ahead <= WARDEN.sight;
+  /** Everyone walking a beat on this map. */
+  function patrolList() {
+    if (worldArea === AREAS.peaks) {
+      const w = wardenState();
+      return w ? [w] : [];
+    }
+    if (worldArea === AREAS.elderwatch) {
+      return ELDERWATCH_WATCH.map((b) => pace(b)).filter(Boolean);
+    }
+    return [];
   }
+
+  /** Are you standing in a line somebody is looking down? */
+  function patrolSees() {
+    for (const w of patrolList()) {
+      if (player.tileY() !== w.y) continue;
+      const ahead = (player.tileX() - w.x) * w.dir;
+      if (ahead > 0 && ahead <= w.sight) return true;
+    }
+    return false;
+  }
+  const wardenSees = patrolSees;
 
   /**
    * HOW FAR UP THE SCREEN A TILE IS DRAWN, in world pixels.
@@ -2454,6 +2534,13 @@ export function createGame(canvas) {
       if (atWiseMan()) { fireInteract('__wiseman'); return; }
       // THE MOUNTAIN. Gear lying on the ground, and boulders to shove. Before
       // the node sweep: a boulder standing on a plate is not a rock to mine.
+      const q = questSiteInReach();
+      if (q) {
+        if (typeof api.onTakeQuestItem === 'function') {
+          try { api.onTakeQuestItem(q.item); } catch (err) { console.error('[world] onTakeQuestItem', err); }
+        }
+        return;
+      }
       const gear = gearInReach();
       if (gear) {
         if (typeof api.onTakeGear === 'function') {
@@ -2730,14 +2817,17 @@ export function createGame(canvas) {
 
     // THE WARDEN'S LINE. Checked after the move, so being caught is about where
     // you ended up rather than where you set off from.
-    if (worldArea === AREAS.peaks && wardenSees() && clockMs - caughtAt > 1500) {
+    if (AREA_PUZZLES[worldArea] && patrolSees() && clockMs - caughtAt > 1500) {
       caughtAt = clockMs;
       slide = null;
-      toast('the Warden turns — and sees you', PALETTE.bad);
+      toast(worldArea === AREAS.peaks
+        ? 'the Warden turns — and sees you'
+        : 'a watchman turns — and sees you', PALETTE.bad);
       if (typeof api.onWardenCaught === 'function') {
         try { api.onWardenCaught(); } catch (err) { console.error('[world] onWardenCaught', err); }
       }
-      player.setTile(WARDEN.doorX, WARDEN.doorY);
+      const door = AREA_PUZZLES[worldArea].door;
+      player.setTile(door.x, door.y);
       snapCamera();
     }
     // ...and its undoing: three plates held at once.
@@ -3361,22 +3451,21 @@ export function createGame(canvas) {
     //     sight. Both are painted on the GROUND, and so both go down BEFORE the
     //     depth-sorted pass — drawn after it they were laid over the scholar's
     //     feet, which read as her standing under the floor.
-    if (worldArea === AREAS.peaks) {
+    if (AREA_PUZZLES[worldArea]) {
       const at = (x, y) => ({
         px: Math.round((x * TILE - camX) * S),
         py: Math.round((y * TILE - camY - liftAt(x, y)) * S),
       });
-      for (const pl of [...REACHES_PLATES, ...WARDEN.plates]) {
+      for (const pl of platesFor(worldArea)) {
         if (!plateHeld(pl.x, pl.y)) continue;
         const q = at(pl.x, pl.y);
         drawSprite(ctx, PLATE_DOWN_SPRITE, q.px, q.py, S);
       }
-      const seer = wardenState();
-      if (seer) {
+      for (const seer of patrolList()) {
         ctx.save();
         ctx.globalAlpha = 0.16;
-        ctx.fillStyle = '#66c8d4';
-        for (let i = 1; i <= WARDEN.sight; i += 1) {
+        ctx.fillStyle = worldArea === AREAS.peaks ? '#66c8d4' : '#ffd93d';
+        for (let i = 1; i <= seer.sight; i += 1) {
           const c = at(seer.x + seer.dir * i, seer.y);
           ctx.fillRect(c.px, c.py, TILE * S, TILE * S);
         }
@@ -3402,7 +3491,7 @@ export function createGame(canvas) {
     // of covered her from the shins up — she disappeared behind the very rock
     // she was pushing. They are objects in the room, so they queue up with
     // everything else in the room and are drawn back-to-front by foot position.
-    if (worldArea === AREAS.peaks) {
+    if (AREA_PUZZLES[worldArea]) {
       for (const b of boulderList()) {
         drawables.push({ sortY: (b.y + 1) * TILE - liftAt(b.x, b.y), kind: 'k', ref: b });
       }
@@ -3410,12 +3499,19 @@ export function createGame(canvas) {
         if (hasGear(g.gear)) continue;
         drawables.push({ sortY: (g.y + 1) * TILE - liftAt(g.x, g.y), kind: 'g', ref: g });
       }
-      const w = wardenState();
-      if (w) drawables.push({ sortY: (w.y + 1) * TILE - liftAt(w.x, w.y), kind: 'w', ref: w });
-      drawables.push({
-        sortY: (WISE_MAN.y + 1) * TILE - liftAt(WISE_MAN.x, WISE_MAN.y),
-        kind: 'o', ref: WISE_MAN,
-      });
+      for (const q of (QUEST_SITES[worldArea] || [])) {
+        if (holdsItem(q.item)) continue;
+        drawables.push({ sortY: (q.y + 1) * TILE - liftAt(q.x, q.y), kind: 'q', ref: q });
+      }
+      for (const w of patrolList()) {
+        drawables.push({ sortY: (w.y + 1) * TILE - liftAt(w.x, w.y), kind: 'w', ref: w });
+      }
+      if (worldArea === AREAS.peaks) {
+        drawables.push({
+          sortY: (WISE_MAN.y + 1) * TILE - liftAt(WISE_MAN.x, WISE_MAN.y),
+          kind: 'o', ref: WISE_MAN,
+        });
+      }
     }
     drawables.sort((a, b) => a.sortY - b.sortY);
 
@@ -3447,11 +3543,18 @@ export function createGame(canvas) {
         const bob = Math.round(Math.sin(clockMs / 380 + d.ref.x) * 1.5);
         const q = mountainAt(d.ref.x, d.ref.y, bob - 3);
         drawSprite(ctx, GEAR_SPRITE, q.px, q.py, S);
+      } else if (d.kind === 'q') {
+        // The Standard has its own art; a key on a hook borrows the gear cache.
+        mountainShadow(d.ref.x, d.ref.y, 8);
+        const bob = Math.round(Math.sin(clockMs / 420 + d.ref.x) * 1.5);
+        const p2 = mountainAt(d.ref.x, d.ref.y, bob - 3);
+        drawSprite(ctx, d.ref.item === 'ashen_standard' ? STANDARD_SPRITE : GEAR_SPRITE,
+          p2.px, p2.py, S);
       } else if (d.kind === 'w') {
         mountainShadow(d.ref.x, d.ref.y, 10);
         const q = mountainAt(d.ref.x, d.ref.y, -4);
-        drawSprite(ctx, WARDEN_FRAMES[Math.floor(clockMs / 320) % WARDEN_FRAMES.length],
-          q.px, q.py, S);
+        const frames = worldArea === AREAS.peaks ? WARDEN_FRAMES : WATCH_FRAMES;
+        drawSprite(ctx, frames[Math.floor(clockMs / 320) % frames.length], q.px, q.py, S);
       } else if (d.kind === 'o') {
         const q = mountainAt(d.ref.x, d.ref.y, -2);
         drawSprite(ctx, WISEMAN_SPRITE, q.px, q.py, S);
@@ -3597,13 +3700,44 @@ export function createGame(canvas) {
       lastPrompts.push(label);
     }
     if (!build.isActive() && atCrossing()) {
-      const label = worldArea === AREAS.home ? 'E  take the road east' : 'E  go back west';
+      const c = crossingHere();
+      const label = c && c.edge === 'east' ? 'E  take the road east' : 'E  go back west';
       const w = textWidth(label, ts);
       const cx = clampToCanvas(Math.round((player.centerX() - camX) * S - w / 2), w);
       const cy = Math.round((player.py - camY) * S) - 16 * S;
       drawTextOutlined(ctx, label, cx, cy, ts, PALETTE.accent, '#0d0f16');
       lastPrompts.push(label);
     }
+    // --- what a quest item on the ground offers, and what a locked door wants.
+    //     Neither belongs to the mountain, so both sit outside its block.
+    if (!build.isActive()) {
+      const q = questSiteInReach();
+      if (q) {
+        const def = QUEST_ITEMS[q.item] || { name: q.item };
+        const label = `E  take ${def.name}`;
+        const w = textWidth(label, ts);
+        const qx = clampToCanvas(
+          Math.round((q.x * TILE + TILE / 2 - camX) * S - w / 2), w
+        );
+        const qy = Math.round((q.y * TILE - camY - liftAt(q.x, q.y)) * S) - 12 * S;
+        drawTextOutlined(ctx, label, qx, qy, ts, PALETTE.accent, '#0d0f16');
+        lastPrompts.push(label);
+      }
+      const lock = DOOR_KEYS[worldArea];
+      const f = player.facingTile();
+      if (lock && lock.x === f.x && lock.y === f.y && !holdsItem(lock.item)) {
+        const def = QUEST_ITEMS[lock.item] || { name: lock.item };
+        const label = `locked — it wants the ${def.name}`;
+        const w = textWidth(label, ts);
+        const lx = clampToCanvas(
+          Math.round((lock.x * TILE + TILE / 2 - camX) * S - w / 2), w
+        );
+        const ly = Math.round((lock.y * TILE - camY - liftAt(lock.x, lock.y)) * S) - 12 * S;
+        drawTextOutlined(ctx, label, lx, ly, ts, PALETTE.textDim, '#0d0f16');
+        lastPrompts.push(label);
+      }
+    }
+
     // --- the mountain's prompts
     if (!build.isActive() && worldArea === AREAS.peaks) {
       const g = gearInReach();

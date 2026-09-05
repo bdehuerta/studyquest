@@ -199,6 +199,7 @@ const api = {
   board: (shore) => post('/api/boat/board', shore ? { x: shore.x, y: shore.y } : {}),
   // v7: the mountain.
   takeGear: (gear) => post('/api/reaches/gear', { gear }),
+  takeQuestItem: (item) => post('/api/quest/take', { item }),
   pushBoulder: (x, y, dx, dy) => post('/api/reaches/push', { x, y, dx, dy }),
   wardenReset: () => post('/api/reaches/reset', {}),
   wardenBeaten: () => post('/api/reaches/warden', {}),
@@ -316,6 +317,23 @@ game.onTakeGear = async (gear) => {
   game.toast(r.name.toUpperCase(), '#5fc9e8');
   game.toast(r.blurb, '#9aa0aa');
   if (r.xp > 0) game.toast(`+${r.xp} xp`, '#5ad18a');
+  return r;
+};
+
+game.onTakeQuestItem = async (item) => {
+  await commitPosition();
+  const r = await api.takeQuestItem(item);
+  if (!r || !r.ok) { game.toast((r && r.error) || 'it will not come free', '#a494c4'); return r; }
+  game.toast(r.name.toUpperCase(), '#e8b64c');
+  if (r.xp > 0) game.toast(`+${r.xp} xp`, '#5ad18a');
+  // The Standard has a scene attached — it is the end of the Wise Man's errand,
+  // and the objective it sets is the next chapter.
+  if (r.dialogue) {
+    dialogue.show(r.dialogue.lines, {
+      name: r.dialogue.name,
+      objective: r.dialogue.objective || null,
+    });
+  }
   return r;
 };
 

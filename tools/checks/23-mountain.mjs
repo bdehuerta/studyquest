@@ -461,7 +461,7 @@ export default {
     },
     {
       type: 'api', route: '/api/state', label: 'both plates are held',
-      path: 'state.reaches.boulders.terrace_a.x', equals: 40,
+      path: 'state.reaches.boulders.peaks:terrace_a.x', equals: 40,
     },
     {
       type: 'eval', label: 'pull it into the page',

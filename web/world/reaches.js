@@ -25,7 +25,7 @@
 
 import {
   WORLD_W, WORLD_H, TILE_TYPES,
-  CROSSING, TERRACE_BANDS, CLIMBS, EAST_ROAD,
+  CROSSING, TERRACE_BANDS, CLIMBS, EAST_ROAD, crossingRows,
   GEAR_SITES, REACHES_PLATES, REACHES_GATES, REACHES_BOULDERS,
   WARDEN, WISE_CAVE,
 } from '../../shared/constants.js';
@@ -292,6 +292,17 @@ export function buildReaches(seed) {
   for (let y = entryY; y < entryY + CROSSING.gapH; y += 1) {
     put(0, y, T.snowroad);
     lay(0, y, 0);
+  }
+  // AND THE PASS EAST, at the end of the old road. Sealed until the Wise Man
+  // names Elderwatch — the server refuses the crossing, and the road's own
+  // prompt says as much — but the tile is walkable so that the refusal can be
+  // read there rather than guessed at from a wall.
+  const east = crossingRows('peaks', 'east');
+  if (east) {
+    for (let y = east.y0; y <= east.y1; y += 1) {
+      put(east.x, y, T.snowroad);
+      lay(east.x, y, 0);
+    }
   }
 
   return { w: WORLD_W, h: WORLD_H, seed: seed | 0, tiles, layers };

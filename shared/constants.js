@@ -117,6 +117,10 @@ export const TILE_TYPES = Object.freeze({
   // dirt. Every road up here was drawn with Home's path tile, which read as a
   // garden path laid across a mountain.
   snowroad: 19,
+  // A door with a lock in it. Solid until you carry its key — the oldest gate
+  // in the genre, and the first one in this game that a KEY opens rather than a
+  // level, a plate or a tool.
+  lockdoor: 20,
 });
 /**
  * WHICH TILES ARE TIMBER — i.e. behave like a tree everywhere it matters:
@@ -134,6 +138,8 @@ export const SOLID_TILES = Object.freeze([
   // solid here and the world lets you through when its plates are held.
   TILE_TYPES.cliff, TILE_TYPES.crackedcrag, TILE_TYPES.icegate,
   TILE_TYPES.rimewall,
+  // Solid by default; the world lets you through when you hold the key.
+  TILE_TYPES.lockdoor,
 ]);
 
 export const PALETTE = Object.freeze({
@@ -564,6 +570,22 @@ export const QUEST_ITEMS = Object.freeze({
     color: '#cdd6e0',
     desc: 'Cut for the storage hut in the north-east woods. Somebody is still inside it.',
   }),
+  brass_key: Object.freeze({
+    id: 'brass_key',
+    name: 'Brass Key',
+    symbol: '⚸',
+    color: '#e8b64c',
+    desc: 'Hangs on a hook in the Elderwatch guardroom. It opens the keep, and the garrison '
+      + 'has long since stopped wondering why anyone would want to go in.',
+  }),
+  ashen_standard: Object.freeze({
+    id: 'ashen_standard',
+    name: 'The Ashen Standard',
+    symbol: '⚑',
+    color: '#c9c0d8',
+    desc: 'Twelve families\' banner, grey with forty years of somebody else\'s dust. Carry it '
+      + 'back to the farlands and they will raise the Levy.',
+  }),
 });
 export const QUEST_ITEM_IDS = Object.freeze(Object.keys(QUEST_ITEMS));
 
@@ -867,10 +889,12 @@ export const SELL_BUNDLE_OVERRIDE = Object.freeze({
 export const AREAS = Object.freeze({
   home: 'home',
   peaks: 'peaks',
+  elderwatch: 'elderwatch',
 });
 export const AREA_IDS = Object.freeze(Object.keys(AREAS));
 export const AREA_NAMES = Object.freeze({
   home: 'The Home Block',
+  elderwatch: 'Elderwatch',
   peaks: 'The Snowfall Reaches',
 });
 
@@ -1107,6 +1131,68 @@ export const CLIMBS = Object.freeze({
 });
 
 /**
+ * EVERY WAY BETWEEN MAPS, IN ONE TABLE.
+ *
+ * The first crossing was a single pair of constants, which was honest while
+ * there were two maps. There are three now, and the Reaches have a door at each
+ * end — so the question "am I standing on a way out, and where does it go" has
+ * to be asked of a table rather than of an `if`.
+ *
+ * `needs` is the story gate: you may not take a road you have not been told
+ * about. The two return legs need nothing, because coming back is never the
+ * thing a quest is gating.
+ */
+export const CROSSINGS = Object.freeze([
+  Object.freeze({
+    from: 'home', to: 'peaks', edge: 'east',
+    x: 63, y0: 9, y1: 11,
+    landing: Object.freeze({ x: 2, y: 42 }),
+    needs: 'herald',
+    refusal: 'the road east runs out of the Home Block and you have no reason to take it. '
+      + 'Speak to the rider in the middle of the map first.',
+  }),
+  Object.freeze({
+    from: 'peaks', to: 'home', edge: 'west',
+    // x is the THRESHOLD, not a single column: an east crossing triggers at
+    // x >= it, a west crossing at x <= it. One tile of slack either side, so
+    // the prompt appears as you reach the edge rather than only on it.
+    x: 1, y0: 41, y1: 43,
+    landing: Object.freeze({ x: 62, y: 10 }),
+    needs: null,
+  }),
+  Object.freeze({
+    from: 'peaks', to: 'elderwatch', edge: 'east',
+    x: 62, y0: 32, y1: 34,
+    landing: Object.freeze({ x: 2, y: 33 }),
+    needs: 'wiseman',
+    refusal: 'an old road, and no reason yet to walk it. The Wise Man is at the top of this '
+      + 'mountain and has not told you where to go.',
+  }),
+  Object.freeze({
+    from: 'elderwatch', to: 'peaks', edge: 'west',
+    x: 1, y0: 32, y1: 34,
+    landing: Object.freeze({ x: 61, y: 33 }),
+    needs: null,
+  }),
+]);
+
+/** The crossing under this tile, or null. Both the world and the server ask. */
+export function crossingAt(area, x, y) {
+  for (const c of CROSSINGS) {
+    if (c.from !== area) continue;
+    if (y < c.y0 || y > c.y1) continue;
+    if (c.edge === 'east' ? x >= c.x : x <= c.x) return c;
+  }
+  return null;
+}
+
+/** The rows one map's edge crossing occupies, for the map builders. */
+export function crossingRows(from, edge) {
+  const c = CROSSINGS.find((k) => k.from === from && k.edge === edge);
+  return c ? { y0: c.y0, y1: c.y1, x: c.x } : null;
+}
+
+/**
  * THE ROAD EAST — the hook for whatever comes after the mountain.
  *
  * It runs along the top of the Foot terrace, out of the labyrinth's north door
@@ -1128,6 +1214,164 @@ export const CLIMBS = Object.freeze({
  * in the maze's east wall opens straight onto the corridor inside.
  */
 export const EAST_ROAD = Object.freeze({ y: 33, x0: 24, x1: 62 });
+
+/**
+ * ===========================================================================
+ * ELDERWATCH — a garrison, not a mountain
+ * ===========================================================================
+ *
+ * The Wise Man's errand: the Ashen Standard hangs in the Hall of Keeping,
+ * behind a garrison that has forgotten what it is guarding. So the third map is
+ * built as the opposite of the second — flat, walled, and made of rooms rather
+ * than terraces, and the danger in it is people rather than terrain.
+ *
+ * THE ROUTE, and what each lock costs:
+ *
+ *   the outer wall     the front gate is barred, but the CULVERT under the
+ *                      west wall is cracked -> the Stone Hammer, which you
+ *                      already carry off the mountain. Old gear opening a new
+ *                      door is the cheapest way to make a journey feel like one.
+ *   the yard           two watchmen on patrol, each with a line of sight.
+ *                      Caught, you are put back in the culvert.
+ *   the guardroom      a barred door held by two plates -> the barrels, which
+ *                      are the Reaches' boulders in another coat. The BRASS KEY
+ *                      hangs inside.
+ *   the keep door      the Brass Key.
+ *   the Hall           the Standard on its stand. Taking it is the quest.
+ */
+export const ELDERWATCH = Object.freeze({
+  /** The fort's outer wall — everything inside is garrison. */
+  wall: Object.freeze({ x0: 18, y0: 8, x1: 56, y1: 40 }),
+  /** The barred front gate, in the west wall. Shut for the whole visit. */
+  gate: Object.freeze({ x: 18, y: 24 }),
+  /** The cracked culvert under the wall, three tiles south of the gate. */
+  culvert: Object.freeze({ x: 18, y: 33 }),
+  /** Where being caught puts you back to: just inside the culvert. */
+  doorX: 19,
+  doorY: 33,
+  /** The keep, north-east, with the Hall of Keeping inside it. */
+  keep: Object.freeze({ x0: 36, y0: 10, x1: 52, y1: 22, doorX: 44, doorY: 22 }),
+  /** The guardroom, south-east of the yard. */
+  guardroom: Object.freeze({ x0: 40, y0: 30, x1: 52, y1: 38, doorX: 40, doorY: 34 }),
+  /** Where the Brass Key hangs. */
+  key: Object.freeze({ x: 50, y: 34 }),
+  /** Where the Standard stands, at the back of the Hall. */
+  standard: Object.freeze({ x: 44, y: 12 }),
+});
+
+/** The barrels of the guardroom lock, and the plates they must sit on. */
+export const ELDERWATCH_BOULDERS = Object.freeze([
+  Object.freeze({ id: 'yard_a', x: 30, y: 32 }),
+  Object.freeze({ id: 'yard_b', x: 30, y: 36 }),
+]);
+export const ELDERWATCH_PLATES = Object.freeze([
+  Object.freeze({ id: 'yard_a', x: 36, y: 32, gate: 'guardroom' }),
+  Object.freeze({ id: 'yard_b', x: 36, y: 36, gate: 'guardroom' }),
+]);
+export const ELDERWATCH_GATES = Object.freeze({
+  guardroom: Object.freeze([
+    Object.freeze({ x: 40, y: 33 }),
+    Object.freeze({ x: 40, y: 34 }),
+    Object.freeze({ x: 40, y: 35 }),
+  ]),
+});
+
+/**
+ * THE WATCH. Two of them, pacing the yard on their own clocks.
+ *
+ * The same machinery as the Rime Warden — a line, a sight, and being put back
+ * where you came in — because the encounter that worked on the mountain works
+ * here for a different reason: up there it was a thing to be timed, down here
+ * it is a garrison that has not been told there is anything to guard.
+ */
+export const ELDERWATCH_WATCH = Object.freeze([
+  Object.freeze({ id: 'watch_north', rowY: 20, fromX: 22, toX: 34, stepMs: 520, sight: 4 }),
+  Object.freeze({ id: 'watch_south', rowY: 28, fromX: 34, toX: 22, stepMs: 640, sight: 4 }),
+]);
+
+/**
+ * WHICH PUZZLE FURNITURE BELONGS TO WHICH MAP.
+ *
+ * Boulders, plates, gates and patrols were all read straight off the Reaches'
+ * constants by name, which was fine while the Reaches were the only map with
+ * any. One table keyed by area means Elderwatch inherits the whole apparatus —
+ * the barrels in its yard ARE the mountain's boulders in another coat — without
+ * a second copy of the rules that move them.
+ */
+export const AREA_PUZZLES = Object.freeze({
+  peaks: Object.freeze({
+    boulders: REACHES_BOULDERS,
+    plates: REACHES_PLATES,
+    gates: REACHES_GATES,
+    /** Where a patrol puts you back to. */
+    door: Object.freeze({ x: WARDEN.doorX, y: WARDEN.doorY }),
+  }),
+  elderwatch: Object.freeze({
+    boulders: ELDERWATCH_BOULDERS,
+    plates: ELDERWATCH_PLATES,
+    gates: ELDERWATCH_GATES,
+    door: Object.freeze({ x: ELDERWATCH.doorX, y: ELDERWATCH.doorY }),
+  }),
+});
+
+/** Every boulder on a map, wherever it started. */
+export function bouldersFor(area) {
+  const p = AREA_PUZZLES[area];
+  if (!p) return [];
+  // The Warden's three are part of its room rather than of the map's furniture,
+  // so they are listed separately and joined here.
+  return area === AREAS.peaks ? [...p.boulders, ...WARDEN.boulders] : [...p.boulders];
+}
+
+/** Every plate on a map. */
+export function platesFor(area) {
+  const p = AREA_PUZZLES[area];
+  if (!p) return [];
+  return area === AREAS.peaks ? [...p.plates, ...WARDEN.plates] : [...p.plates];
+}
+
+/**
+ * THINGS LYING ON THE GROUND THAT A QUEST WANTS.
+ *
+ * The same shape as GEAR_SITES, and read by the same code: a tile, a prompt, a
+ * server route that checks you are standing on it. `needs` is a quest item you
+ * must already hold — the Standard is behind the keep door, and the keep door
+ * is behind the Brass Key, so the server re-checks the key rather than trusting
+ * that a locked door stopped you.
+ */
+export const QUEST_SITES = Object.freeze({
+  elderwatch: Object.freeze([
+    Object.freeze({
+      item: 'brass_key', x: 50, y: 34, xp: 'brass_key_taken',
+      found: 'The Brass Key — the keep is yours to walk into.',
+    }),
+    Object.freeze({
+      item: 'ashen_standard', x: 44, y: 12, xp: 'standard_taken', needs: 'brass_key',
+      found: 'THE ASHEN STANDARD.',
+    }),
+  ]),
+});
+
+/** Which quest item opens which door tile, per map. */
+export const DOOR_KEYS = Object.freeze({
+  elderwatch: Object.freeze({ x: 44, y: 22, item: 'brass_key' }),
+});
+
+/** What the Standard's keeper says when you lift it off the stand. */
+export const STANDARD_DIALOGUE = Object.freeze({
+  name: 'The Hall of Keeping',
+  lines: Object.freeze([
+    'The Hall is colder than the yard, and quieter than it has any right to be.',
+    'The Standard hangs where it has hung for forty years: grey, heavy, and filed under '
+      + 'nothing in particular. Somebody has written a number on the stand.',
+    'You take it down. It weighs less than you expected, the way things do when you have '
+      + 'been carrying the idea of them for a while.',
+    'Nothing sounds. No bell, no shout. The garrison goes on not knowing.',
+    '"They stopped asking what it was," the Wise Man had said. "That is how you will get it out."',
+  ]),
+  objective: 'Carry the Ashen Standard west, out of Elderwatch and back to the tribes of the '
+    + 'farlands. They will raise the Levy against Ranon.',
+});
 
 /** The summit cave: dark inside, the old man at the back of it. */
 export const WISE_CAVE = Object.freeze({
@@ -1184,6 +1428,11 @@ export const BOX_XP_RANGE = Object.freeze([10, 30]);
 /** One-off awards for quest beats. Paid ONCE, guarded by `state.questsDone`. */
 export const QUEST_XP = Object.freeze({
   bloom_felled: 120,
+  // ELDERWATCH. Getting in is worth something; getting the Standard out is worth
+  // the rest of the story.
+  culvert_broken: 150,
+  brass_key_taken: 200,
+  standard_taken: 600,
   woodsman_opened: 180,
   stonemason_opened: 180,
   // Hearing the Herald pays NOTHING. Bruno, 2026-08-31: "he pays 400 xp when

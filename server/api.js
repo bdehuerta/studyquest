@@ -72,6 +72,14 @@ import {
   REACHES_PLATES,
   WARDEN,
   WISE_CAVE,
+  crossingAt,
+  AREA_NAMES,
+  STANDARD_DIALOGUE,
+  QUEST_SITES,
+  QUEST_ITEMS as QUEST_ITEM_DEFS,
+  AREA_PUZZLES,
+  bouldersFor,
+  platesFor,
 } from '../shared/constants.js';
 
 import {
@@ -1280,6 +1288,9 @@ export async function handleApi(pathname, body, state, save) {
       // a slot, and they are read and written through the server because the
       // page's localStorage is keyed by an origin whose PORT changes on every
       // launch. See SETTINGS_PATH in slots.js.
+      case '/api/quest/take':
+        return routeQuestTake(b, state, persist);
+
       case '/api/reaches/gear':
         return routeReachesGear(b, state, persist);
 
@@ -3084,7 +3095,9 @@ function routeFish(b, state, save) {
 /** Which map the scholar is standing on. Defaults to home for older saves. */
 function areaOf(state) {
   const a = state.player && state.player.area;
-  return a === AREAS.peaks ? AREAS.peaks : AREAS.home;
+  // A whitelist, not a two-way switch: there are three maps now and a save that
+  // names one of them must not be quietly sent home.
+  return (a === AREAS.peaks || a === AREAS.elderwatch) ? a : AREAS.home;
 }
 
 function wiseManOf(state) {
@@ -3105,38 +3118,28 @@ function wiseManOf(state) {
  */
 function routeTravel(b, state, save) {
   const from = areaOf(state);
-  const to = from === AREAS.home ? AREAS.peaks : AREAS.home;
   const pos = playerPosition(b, state);
 
-  if (from === AREAS.home) {
-    const herald = isObj(state.herald) ? state.herald : {};
-    if (!herald.spoken) {
-      return fail(
-        'the road east runs out of the Home Block and you have no reason to take it. '
-        + 'Speak to the rider in the middle of the map first.'
-      );
-    }
-    if (pos.x < CROSSING.homeExitX
-      || pos.y < CROSSING.gapY || pos.y >= CROSSING.gapY + CROSSING.gapH) {
-      return fail('the way east is the road past the storage hut, at the far edge of the map.');
-    }
-  } else {
-    // The Reaches' own rows — the pass at the foot of the mountain, which is
-    // nowhere near Home's road east. See CROSSING.peaksEntryY.
-    if (pos.x > CROSSING.peaksEntryX
-      || pos.y < CROSSING.peaksEntryY || pos.y >= CROSSING.peaksEntryY + CROSSING.gapH) {
-      return fail('the way back is the pass at the foot of the mountain, on the west edge.');
-    }
+  // WHICH WAY OUT AM I STANDING ON? Asked of the CROSSINGS table, because
+  // there are three maps now and the Reaches have a door at each end.
+  const crossing = crossingAt(from, pos.x, pos.y);
+  if (!crossing) {
+    return fail('there is no way out of the map here — the roads leave from the edges.');
+  }
+  if (crossing.needs === 'herald' && !(isObj(state.herald) && state.herald.spoken)) {
+    return fail(crossing.refusal);
+  }
+  if (crossing.needs === 'wiseman' && !(isObj(state.wiseMan) && state.wiseMan.spoken)) {
+    return fail(crossing.refusal);
   }
 
   // Remember where we were standing, so coming back is coming BACK.
   if (!isObj(state.areaPos)) state.areaPos = {};
   state.areaPos[from] = { x: pos.x, y: pos.y };
 
-  const landing = to === AREAS.peaks
-    ? { x: CROSSING.peaksEntryX + 1, y: CROSSING.peaksEntryY + 1 }
-    : { x: CROSSING.homeExitX - 1, y: CROSSING.gapY + 1 };
+  const landing = { x: crossing.landing.x, y: crossing.landing.y };
 
+  const to = crossing.to;
   state.player.area = to;
   state.player.x = landing.x;
   state.player.y = landing.y;
@@ -3145,14 +3148,15 @@ function routeTravel(b, state, save) {
   const boat = boatOf(state);
   boat.riding = false;
 
-  pushLog(
-    state,
-    to === AREAS.peaks
-      ? 'The road climbs, the air thins, and the trees go from green to black. '
-        + 'You have crossed into the Snowfall Reaches.'
-      : 'The snow gives way to grass. You are back in the Home Block.',
-    'quest'
-  );
+  const ARRIVALS = {
+    peaks: 'The road climbs, the air thins, and the trees go from green to black. '
+      + 'You have crossed into the Snowfall Reaches.',
+    home: 'The snow gives way to grass. You are back in the Home Block.',
+    elderwatch: 'The mountain falls away behind you and the road runs out onto a flat, '
+      + 'cold moor. Elderwatch sits on it: a square of wall with a barred gate, and nobody '
+      + 'on it who is expecting anyone.',
+  };
+  pushLog(state, ARRIVALS[to] || `You have crossed into ${AREA_NAMES[to] || to}.`, 'quest');
   save(state);
   return ok({ state, area: to, at: landing });
 }
@@ -3237,15 +3241,22 @@ function reachesOf(state) {
   // was last pushed. Seeded lazily so a save made before the mountain existed
   // walks into a fully-built one.
   for (const b of ALL_BOULDERS) {
-    if (!isObj(r.boulders[b.id])) r.boulders[b.id] = { x: b.x, y: b.y };
+    if (!isObj(r.boulders[b.key])) r.boulders[b.key] = { x: b.x, y: b.y };
   }
   return r;
 }
 
-const ALL_BOULDERS = Object.freeze([
-  ...REACHES_BOULDERS.map((b) => ({ id: b.id, x: b.x, y: b.y })),
-  ...WARDEN.boulders.map((b) => ({ id: b.id, x: b.x, y: b.y })),
-]);
+/**
+ * EVERY BOULDER ON EVERY MAP, keyed `area:id`.
+ *
+ * Elderwatch's barrels are the mountain's boulders in another coat, so they go
+ * through the same routes and the same store — but two maps may both have a
+ * boulder called `yard_a`, so the key carries the map.
+ */
+const ALL_BOULDERS = Object.freeze(
+  Object.keys(AREA_PUZZLES).flatMap((area) =>
+    bouldersFor(area).map((b) => ({ key: `${area}:${b.id}`, area, id: b.id, x: b.x, y: b.y })))
+);
 
 function hasGear(state, id) {
   return reachesOf(state).gear.indexOf(id) !== -1;
@@ -3283,8 +3294,10 @@ function routeReachesGear(b, state, save) {
  * side of it to push, and that nothing else is already sitting on the target.
  */
 function routeReachesPush(b, state, save) {
-  if (areaOf(state) !== AREAS.peaks) return fail('there is nothing to push here.');
+  const area = areaOf(state);
+  if (!AREA_PUZZLES[area]) return fail('there is nothing to push here.');
   const r = reachesOf(state);
+  const mine = (k) => k.indexOf(`${area}:`) === 0;
   const x = Math.round(num(b.x) ?? NaN);
   const y = Math.round(num(b.y) ?? NaN);
   const dx = Math.round(num(b.dx) ?? 0);
@@ -3292,7 +3305,8 @@ function routeReachesPush(b, state, save) {
   if (!Number.isFinite(x) || !Number.isFinite(y)) return fail('a push needs the boulder\'s x and y');
   if (Math.abs(dx) + Math.abs(dy) !== 1) return fail('a boulder moves one tile, and not diagonally');
 
-  const entry = Object.entries(r.boulders).find(([, p]) => p && p.x === x && p.y === y);
+  const entry = Object.entries(r.boulders)
+    .find(([k, p]) => mine(k) && p && p.x === x && p.y === y);
   if (!entry) return fail(`there is no boulder at ${x},${y}.`);
   const [id, at] = entry;
 
@@ -3304,7 +3318,8 @@ function routeReachesPush(b, state, save) {
   const tx = x + dx;
   const ty = y + dy;
   if (tx < 0 || ty < 0 || tx >= WORLD_W || ty >= WORLD_H) return fail('it will not go over the edge.');
-  const taken = Object.entries(r.boulders).some(([bid, p]) => bid !== id && p && p.x === tx && p.y === ty);
+  const taken = Object.entries(r.boulders)
+    .some(([bid, p]) => mine(bid) && bid !== id && p && p.x === tx && p.y === ty);
   if (taken) return fail('another boulder is already there.');
 
   at.x = tx;
@@ -3314,12 +3329,12 @@ function routeReachesPush(b, state, save) {
 }
 
 /** Which plates have a boulder on them right now. */
-function platesHeld(state) {
+function platesHeld(state, area = areaOf(state)) {
   const r = reachesOf(state);
   const held = [];
-  const all = [...REACHES_PLATES, ...WARDEN.plates];
-  for (const p of all) {
-    const on = Object.values(r.boulders).some((b) => b && b.x === p.x && b.y === p.y);
+  for (const p of platesFor(area)) {
+    const on = Object.entries(r.boulders)
+      .some(([k, bl]) => k.indexOf(`${area}:`) === 0 && bl && bl.x === p.x && bl.y === p.y);
     if (on) held.push(p.id || `${p.x},${p.y}`);
   }
   return held;
@@ -3332,8 +3347,16 @@ function platesHeld(state) {
  */
 function routeReachesReset(b, state, save) {
   const r = reachesOf(state);
+  const area = areaOf(state);
+  // Caught in Elderwatch, the yard's barrels go back too. Same rule, other map:
+  // losing a room costs you that room.
+  if (area === AREAS.elderwatch) {
+    for (const bl of bouldersFor(area)) r.boulders[`${area}:${bl.id}`] = { x: bl.x, y: bl.y };
+    save(state);
+    return ok({ state, at: { ...AREA_PUZZLES[area].door } });
+  }
   for (const boulder of WARDEN.boulders) {
-    r.boulders[boulder.id] = { x: boulder.x, y: boulder.y };
+    r.boulders[`${AREAS.peaks}:${boulder.id}`] = { x: boulder.x, y: boulder.y };
   }
   save(state);
   return ok({ state, at: { x: WARDEN.doorX, y: WARDEN.doorY } });
@@ -3350,7 +3373,7 @@ function routeReachesWarden(b, state, save) {
   const r = reachesOf(state);
   if (r.warden.beaten) return ok({ state, beaten: true, xp: 0 });
 
-  const held = new Set(platesHeld(state));
+  const held = new Set(platesHeld(state, AREAS.peaks));
   const need = WARDEN.plates.map((p) => p.id);
   const missing = need.filter((id) => !held.has(id));
   if (missing.length) {
@@ -3362,6 +3385,56 @@ function routeReachesWarden(b, state, save) {
   pushLog(state, 'The Rime Warden comes apart in the wind. The way to the cave is open.', 'quest');
   save(state);
   return ok({ state, beaten: true, xp });
+}
+
+/**
+ * POST /api/quest/take — lift a quest item off the ground.
+ *
+ * The same bargain as everything else out in the world: the client knows the
+ * terrain and raises the prompt, the server owns WHETHER YOU MAY HAVE IT. It
+ * checks the map, that you are standing on the thing, that you have not already
+ * taken it, and — for the Standard — that you carry the key that opens the door
+ * in front of it. A locked door is a client-side fact; the prerequisite behind
+ * it is not.
+ */
+function routeQuestTake(b, state, save) {
+  const area = areaOf(state);
+  const sites = QUEST_SITES[area] || [];
+  const wanted = typeof b.item === 'string' ? b.item : '';
+  const site = sites.find((q) => q.item === wanted);
+  if (!site) return fail(`there is no ${wanted || 'such thing'} to be had here.`);
+
+  const items = questItemsOf(state);
+  if ((num(items[site.item]) ?? 0) > 0) return fail('you already have it.');
+
+  const pos = playerPosition(b, state);
+  if (Math.max(Math.abs(pos.x - site.x), Math.abs(pos.y - site.y)) > 1) {
+    return fail(`that is at ${site.x},${site.y} — you are at ${pos.x},${pos.y}.`);
+  }
+  if (site.needs && (num(items[site.needs]) ?? 0) < 1) {
+    const need = QUEST_ITEM_DEFS[site.needs] || { name: site.needs };
+    return fail(`the way to it is locked — you need the ${need.name}.`);
+  }
+
+  items[site.item] = 1;
+  const def = QUEST_ITEM_DEFS[site.item] || { name: site.item };
+  const xp = site.xp ? completeQuest(state, site.xp, `took the ${def.name}`) : 0;
+  pushLog(state, site.found || `You take the ${def.name}.`, 'quest');
+
+  // THE STANDARD IS THE END OF THE ERRAND. It carries its own scene and its own
+  // objective, because taking it is the moment the Wise Man was pointing at.
+  const scene = site.item === 'ashen_standard' ? STANDARD_DIALOGUE : null;
+  if (scene) pushLog(state, `New objective — ${scene.objective}`, 'quest');
+  save(state);
+  return ok({
+    state,
+    item: site.item,
+    name: def.name,
+    xp,
+    dialogue: scene
+      ? { stage: 'opening', name: scene.name, lines: scene.lines.slice(), objective: scene.objective }
+      : null,
+  });
 }
 
 function routeWiseManTalk(b, state, save) {
