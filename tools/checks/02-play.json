@@ -1,0 +1,222 @@
+{
+ "name": "Play — moving, interacting and opening panels throws nothing",
+ "order": 20,
+ "allowConsole": [
+  "favicon\\.ico",
+  "Failed to load resource.*favicon",
+  "ERR_CONNECTION_REFUSED.*\\/api\\/player\\/move"
+ ],
+ "steps": [
+  {
+   "type": "note",
+   "text": "This suite asserts almost nothing on purpose. Its job is to exercise the input paths and let the console-error capture do the judging: a throw in the render loop or a panel's setState is invisible in the DOM."
+  },
+  {
+   "type": "navigate",
+   "url": "/",
+   "label": "load the game"
+  },
+  {
+   "type": "waitFor",
+   "label": "the world is up",
+   "expr": "const b = document.getElementById('boot'); return !b || b.classList.contains('hidden');",
+   "timeoutMs": 15000
+  },
+  {
+   "type": "eval",
+   "label": "enter the world through the launch menu",
+   "expr": "const bs=[...document.querySelectorAll('.sq-launch-root button')];const pick=bs.find(x=>/continue/i.test(x.textContent||''))||bs.find(x=>/^\\s*load/i.test(x.textContent||''));if(!pick) return 'no continue/load: '+bs.map(b=>b.textContent.trim()).join('|');pick.click(); return pick.textContent.trim();"
+  },
+  {
+   "type": "waitFor",
+   "label": "the title screen steps aside so play can begin",
+   "timeoutMs": 10000,
+   "expr": "const r=document.querySelector('.sq-launch-root'); return !r || r.hidden;"
+  },
+  {
+   "type": "wait",
+   "ms": 400
+  },
+  {
+   "type": "key",
+   "key": "d",
+   "times": 6,
+   "label": "walk east"
+  },
+  {
+   "type": "key",
+   "key": "s",
+   "times": 4,
+   "label": "walk south"
+  },
+  {
+   "type": "key",
+   "key": "a",
+   "times": 6,
+   "label": "walk west"
+  },
+  {
+   "type": "key",
+   "key": "w",
+   "times": 4,
+   "label": "walk north"
+  },
+  {
+   "type": "screenshot",
+   "file": "play-walked.png",
+   "label": "screenshot: after walking"
+  },
+  {
+   "type": "key",
+   "key": "e",
+   "times": 3,
+   "gapMs": 120,
+   "label": "interact / chop (E)"
+  },
+  {
+   "type": "wait",
+   "ms": 300
+  },
+  {
+   "type": "screenshot",
+   "file": "play-interact.png",
+   "label": "screenshot: after interacting"
+  },
+  {
+   "type": "key",
+   "key": "q",
+   "label": "open Quests (Q)"
+  },
+  {
+   "type": "wait",
+   "ms": 250
+  },
+  {
+   "type": "screenshot",
+   "file": "panel-quests.png",
+   "label": "screenshot: quests"
+  },
+  {
+   "type": "key",
+   "key": "Escape",
+   "label": "close"
+  },
+  {
+   "type": "key",
+   "key": "Tab",
+   "label": "open Inventory (Tab)",
+   "optional": true
+  },
+  {
+   "type": "wait",
+   "ms": 250
+  },
+  {
+   "type": "screenshot",
+   "file": "panel-inventory.png",
+   "label": "screenshot: inventory",
+   "optional": true
+  },
+  {
+   "type": "key",
+   "key": "Escape",
+   "label": "close"
+  },
+  {
+   "type": "eval",
+   "label": "panels reachable through the menu bridge",
+   "expr": "return Object.keys((window.sqMenu && window.sqMenu.openPanel) ? window : {}).length >= 0 && !!window.sqMenu;"
+  },
+  {
+   "type": "wait",
+   "ms": 800,
+   "label": "let the loop keep running with panels closed"
+  },
+  {
+   "type": "assert",
+   "label": "still no boot-level failure",
+   "expr": "const b = document.getElementById('boot'); return !b || b.className !== 'error';"
+  },
+  {
+   "type": "screenshot",
+   "file": "play-final.png",
+   "label": "screenshot: final frame"
+  },
+  {
+   "type": "eval",
+   "label": "Esc once — unwinds any open panel",
+   "expr": "window.dispatchEvent(new KeyboardEvent('keydown',{key:'Escape',bubbles:true})); return 'sent';"
+  },
+  {
+   "type": "wait",
+   "label": "let the panel close",
+   "ms": 300
+  },
+  {
+   "type": "eval",
+   "label": "Esc again — with nothing open this pauses",
+   "expr": "window.dispatchEvent(new KeyboardEvent('keydown',{key:'Escape',bubbles:true})); return 'sent';"
+  },
+  {
+   "type": "waitFor",
+   "label": "the pause box appears",
+   "timeoutMs": 4000,
+   "expr": "const s=document.querySelector('.sq-pause-scrim'); return !!s && s.dataset.open==='1';"
+  },
+  {
+   "type": "assert",
+   "label": "pause offers Quit to Menu",
+   "expr": "return [...document.querySelectorAll('.sq-pause-btn')].some(b=>/quit to menu/i.test(b.textContent||''));"
+  },
+  {
+   "type": "assert",
+   "label": "pausing did not jump to the title screen",
+   "expr": "const r=document.querySelector('.sq-launch-root'); return !r || r.hidden;"
+  },
+  {
+   "type": "assert",
+   "label": "the unsaved warning is NOT showing yet — measured, not just `hidden`",
+   "expr": "const w=document.querySelector('.sq-pause-warn'); return !!w && w.offsetParent === null && w.getClientRects().length === 0;",
+   "equals": true
+  },
+  {
+   "type": "screenshot",
+   "label": "the pause box",
+   "file": "pause-box.png"
+  },
+  {
+   "type": "eval",
+   "label": "Quit to Menu returns to the title screen",
+   "expr": "const b=[...document.querySelectorAll('.sq-pause-btn')].find(x=>/quit to menu/i.test(x.textContent||'')); if(!b) return 'missing'; b.click(); return 'clicked';"
+  },
+  {
+   "type": "assert",
+   "label": "the pause box offers an explicit SAVE GAME",
+   "expr": "return [...document.querySelectorAll('.sq-pause-btn')].some(b=>/save game/i.test(b.textContent||''));",
+   "equals": true
+  },
+  {
+   "type": "assert",
+   "label": "leaving unsaved warns instead of quitting straight out",
+   "expr": "const w=document.querySelector('.sq-pause-warn'); return !!w && !w.hidden && /not saved/i.test(w.textContent||'');",
+   "equals": true
+  },
+  {
+   "type": "assert",
+   "label": "and the title screen has NOT appeared behind the warning",
+   "expr": "const r=document.querySelector('.sq-launch-root'); return !r || r.hidden;",
+   "equals": true
+  },
+  {
+   "type": "eval",
+   "label": "choose to leave it behind",
+   "expr": "const b=[...document.querySelectorAll('.sq-pause-warn .sq-pause-btn')].find(x=>/without saving/i.test(x.textContent||'')); if(!b) return 'missing'; b.click(); return 'clicked';"
+  },
+  {
+   "type": "waitFor",
+   "label": "the title screen is back",
+   "timeoutMs": 6000,
+   "expr": "const r=document.querySelector('.sq-launch-root'); return !!r && !r.hidden;"
+  }
+ ]
+}

@@ -1,0 +1,39 @@
+{
+  "name": "API — the read routes answer and the server refuses bad input safely",
+  "order": 50,
+  "browser": false,
+  "steps": [
+    { "type": "api", "route": "/api/state", "expectOk": true, "label": "GET /api/state", "path": "state.player.level", "truthy": true },
+    { "type": "api", "route": "/api/state", "label": "state carries the shops key", "path": "state.shops.refreshedOn" },
+    { "type": "api", "route": "/api/slots", "expectOk": true, "label": "GET /api/slots", "path": "slots.0.slot", "equals": 1 },
+    { "type": "api", "route": "/api/shops", "expectOk": true, "label": "GET /api/shops" },
+
+    { "type": "note", "text": "A NEW GAME starts in the middle of the four plaza buildings, not beside one of them. The four span x 22-28 and y 17-21, so their centre is 25,19 — SPAWN in shared/constants.js. The old start was 24,18, level with the top pair." },
+    { "type": "api", "route": "/api/state", "expectOk": true, "label": "a fresh save spawns at the centre of the plaza — x", "path": "state.player.x", "equals": 25 },
+    { "type": "api", "route": "/api/state", "expectOk": true, "label": "and y", "path": "state.player.y", "equals": 19 },
+
+    { "type": "note", "text": "FLORINS ARE RARE. A new purse holds 25, not 120 — a florin is now worth about five common materials rather than an eighth of one." },
+    { "type": "api", "route": "/api/state", "expectOk": true, "label": "a new purse holds 25 florins", "path": "state.player.coins.florin", "equals": 25 },
+
+    { "type": "note", "text": "A NEW SAVE CARRIES NOTHING. Bruno: 'I start with many materials that I should not start with: only start with the axe, the pickaxe and 2 tree seeds.' The old crate of salvage existed to unblock crafting the first axe, back when a new save owned no tools; the starter pack made it dead weight." },
+    { "type": "api", "route": "/api/state", "expectOk": true, "label": "no ironwood in the pack", "path": "state.materials.ironwood", "equals": 0 },
+    { "type": "api", "route": "/api/state", "expectOk": true, "label": "no chalkstone either", "path": "state.materials.chalkstone", "equals": 0 },
+    { "type": "api", "route": "/api/state", "expectOk": true, "label": "but two tree seeds", "path": "state.player.saplings", "equals": 2 },
+    { "type": "api", "route": "/api/state", "expectOk": true, "label": "and an axe", "path": "state.player.gatherTools.0.toolId", "equals": "axe" },
+    { "type": "api", "route": "/api/state", "expectOk": true, "label": "and a pickaxe", "path": "state.player.gatherTools.1.toolId", "equals": "pickaxe" },
+    { "type": "api", "route": "/api/state", "expectOk": true, "label": "and no charms worn", "path": "state.player.charms.0", "equals": null },
+
+    { "type": "note", "text": "LEVELS BUY STAMINA. A level-1 save gets the buildings' bonus and nothing more; STAMINA_PER_LEVEL is granted from level 2 up, so a new save is unchanged by the rule." },
+    { "type": "api", "route": "/api/state", "expectOk": true, "label": "a level-1 save still opens at 110 stamina", "path": "state.player.maxEnergy", "equals": 110 },
+    { "type": "api", "route": "/api/state", "expectOk": true, "label": "and full", "path": "state.player.energy", "equals": 110 },
+
+    { "type": "note", "text": "Bad input must come back as ok:false, never as a 500 and never as a dead server." },
+    { "type": "api", "route": "/api/slots/switch", "body": { "slot": 999 }, "expectStatus": 200, "label": "switching to a nonexistent slot is refused politely", "path": "ok", "equals": false },
+    { "type": "api", "route": "/api/craft", "body": { "recipeId": "definitely_not_a_recipe" }, "expectStatus": 200, "label": "an unknown recipe is refused politely", "path": "ok", "equals": false },
+    { "type": "api", "route": "/api/nope/nothing", "body": {}, "label": "an unknown route is refused, not crashed into", "path": "ok", "equals": false },
+
+    { "type": "api", "route": "/api/state", "expectOk": true, "label": "the server is still alive and serving after all that" },
+
+    { "type": "note", "text": "Any exception handleApi caught and logged would show up in the server-stderr check that runs at the end of every suite." }
+  ]
+}

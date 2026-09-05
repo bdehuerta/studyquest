@@ -1,0 +1,121 @@
+{
+ "name": "Boot \u2014 the page loads and the game starts",
+ "order": 10,
+ "allowConsole": [
+  "favicon\\.ico",
+  "Failed to load resource.*favicon"
+ ],
+ "steps": [
+  {
+   "type": "navigate",
+   "url": "/",
+   "label": "load the game"
+  },
+  {
+   "type": "waitFor",
+   "label": "the boot overlay clears",
+   "expr": "const b = document.getElementById('boot'); if (!b) return true; return b.classList.contains('hidden');",
+   "timeoutMs": 15000
+  },
+  {
+   "type": "assert",
+   "label": "boot did not fail",
+   "expr": "const b = document.getElementById('boot'); return !b || b.className !== 'error';"
+  },
+  {
+   "type": "assert",
+   "label": "the launch menu is the front door",
+   "expr": "const r=document.querySelector('.sq-launch-root'); return !!r && !r.hidden;"
+  },
+  {
+   "type": "assert",
+   "label": "the dock is hidden behind the menu",
+   "expr": "const d=document.getElementById('dock'); return !d || getComputedStyle(d).display==='none';"
+  },
+  {
+   "type": "assert",
+   "label": "the menu has a painted background",
+   "expr": "const c=document.getElementById('menubg'); if(!c||getComputedStyle(c).display==='none') return false; const x=c.getContext('2d'); const d=x.getImageData(0,0,Math.min(c.width,64),Math.min(c.height,64)).data; for(let i=0;i<d.length;i+=4){if(d[i]||d[i+1]||d[i+2])return true;} return false;"
+  },
+  {
+   "type": "screenshot",
+   "label": "the title screen",
+   "file": "launch-menu.png"
+  },
+  {
+   "type": "assert",
+   "label": "the title screen leads with PLAY, not a save list",
+   "expr": "const g=document.querySelector('.sq-launch-gate'); const st=document.querySelector('.sq-launch-stage');return !!g && !g.hidden && !!st && st.hidden;"
+  },
+  {
+   "type": "eval",
+   "label": "press PLAY",
+   "expr": "const b=document.querySelector('.sq-launch-play'); if(!b) return 'no play button'; b.click(); return 'clicked';"
+  },
+  {
+   "type": "waitFor",
+   "label": "the saves screen appears after PLAY",
+   "timeoutMs": 6000,
+   "expr": "const st=document.querySelector('.sq-launch-stage'); return !!st && !st.hidden;"
+  },
+  {
+   "type": "eval",
+   "label": "choose a save from the launch menu",
+   "expr": "const bs=[...document.querySelectorAll('.sq-launch-root button')];const pick=bs.find(x=>/continue/i.test(x.textContent||''))||bs.find(x=>/^\\s*load/i.test(x.textContent||''));if(!pick) return 'no continue/load button: '+bs.map(b=>b.textContent.trim()).join('|');pick.click(); return pick.textContent.trim();"
+  },
+  {
+   "type": "waitFor",
+   "label": "the launch menu steps aside",
+   "timeoutMs": 10000,
+   "expr": "const r=document.querySelector('.sq-launch-root'); return !r || r.hidden;"
+  },
+  {
+   "type": "assert",
+   "label": "the canvas exists and has been sized",
+   "expr": "const c = document.getElementById('stage'); return !!c && c.width > 0 && c.height > 0;"
+  },
+  {
+   "type": "assert",
+   "label": "the canvas has actually been painted",
+   "expr": "const c = document.getElementById('stage'); const ctx = c.getContext('2d'); const w = Math.min(c.width, 96), h = Math.min(c.height, 96); const d = ctx.getImageData(0, 0, w, h).data; for (let i = 0; i < d.length; i += 4) { if (d[i] || d[i+1] || d[i+2]) return true; } return false;"
+  },
+  {
+   "type": "assert",
+   "label": "the native menu bridge is present",
+   "expr": "return !!(window.sqMenu && window.sqMenu.ready);"
+  },
+  {
+   "type": "api",
+   "route": "/api/state",
+   "label": "the server hands over state",
+   "expectOk": true,
+   "path": "state.player.name",
+   "truthy": true
+  },
+  {
+   "type": "eval",
+   "label": "dock buttons present (informational)",
+   "expr": "return [...document.querySelectorAll('#dock button')].map(b => b.dataset.panel).sort();"
+  },
+  {
+   "type": "screenshot",
+   "file": "boot.png",
+   "label": "screenshot: the world on load"
+  },
+  {
+   "type": "wait",
+   "ms": 1500,
+   "label": "let a second of render frames run"
+  },
+  {
+   "type": "assert",
+   "label": "the render loop is still alive after a second",
+   "expr": "const b = document.getElementById('boot'); return !b || b.className !== 'error';"
+  },
+  {
+   "type": "screenshot",
+   "file": "boot-settled.png",
+   "label": "screenshot: after the loop has run"
+  }
+ ]
+}
