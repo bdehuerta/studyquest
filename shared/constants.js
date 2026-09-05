@@ -592,6 +592,22 @@ export const QUEST_ITEMS = Object.freeze({
     desc: 'Twelve families\' banner, grey with forty years of somebody else\'s dust. Carry it '
       + 'back to the farlands and they will raise the Levy.',
   }),
+  /**
+   * THE CODEX. Behind the barred door of the Elderwatch guardroom, which is
+   * the one lock in the fort that opens onto knowledge rather than a way on.
+   *
+   * It is not a manual. It is a LEDGER OF WHAT YOU HAVE SEEN, and the watch
+   * have been keeping it for forty years without reading it — which is the
+   * same joke as the Standard, told smaller.
+   */
+  codex: Object.freeze({
+    id: 'codex',
+    name: 'The Codex',
+    symbol: '❦',
+    color: '#d8c89a',
+    desc: 'A garrison ledger, half-filled in a dozen hands. The blank pages fill themselves '
+      + 'in as you go: every material, place and person you meet writes itself down.',
+  }),
 });
 export const QUEST_ITEM_IDS = Object.freeze(Object.keys(QUEST_ITEMS));
 
@@ -1252,17 +1268,26 @@ export const ELDERWATCH = Object.freeze({
   gate: Object.freeze({ x: 18, y: 24 }),
   /** The cracked culvert under the wall, three tiles south of the gate. */
   culvert: Object.freeze({ x: 18, y: 33 }),
-  /** Where being caught puts you back to: just inside the culvert. */
-  doorX: 19,
+  /**
+   * Where being caught puts you back to: INSIDE the culvert, on the yard's
+   * own ground. It used to be 19,33 — the second tile of the wall's thickness,
+   * which is cracked masonry and solid until the Stone Hammer opens it. Being
+   * put back into a wall is not being put back at the door.
+   */
+  doorX: 20,
   doorY: 33,
-  /** The keep, north-east, with the Hall of Keeping inside it. */
-  keep: Object.freeze({ x0: 36, y0: 10, x1: 52, y1: 22, doorX: 44, doorY: 22 }),
-  /** The guardroom, south-east of the yard. */
-  guardroom: Object.freeze({ x0: 40, y0: 30, x1: 52, y1: 38, doorX: 40, doorY: 34 }),
-  /** Where the Brass Key hangs. */
-  key: Object.freeze({ x: 50, y: 34 }),
-  /** Where the Standard stands, at the back of the Hall. */
-  standard: Object.freeze({ x: 44, y: 12 }),
+  /**
+   * THE GUARDROOM, south-east, against the wall — the one room of the flat
+   * fort that survived the keep becoming a tower.
+   *
+   * The first cut put it at 40,30-52,38 with the Brass Key inside. The tower
+   * then landed on top of that, so the room moved out to the wall and the key
+   * moved upstairs; what is behind the barred door now is the CODEX. Its south
+   * wall is the yard's, which is what the barrels are pushed along.
+   */
+  guardroom: Object.freeze({ x0: 46, y0: 32, x1: 53, y1: 37 }),
+  /** Where the Codex lies, on the table at the back of the guardroom. */
+  codex: Object.freeze({ x: 49, y: 33 }),
 });
 
 /**
@@ -1330,7 +1355,9 @@ export const TOWER_FLOORS = Object.freeze([
     down: Object.freeze({ x: 37, y: 16 }),
     door: Object.freeze({ x: 37, y: 17 }),
     patrols: Object.freeze([
-      Object.freeze({ rowY: 30, fromX: 30, toX: 44, stepMs: 620, sight: 3 }),
+      // x34-40, not x30-44: the ends of the wider beat ran through the room's
+      // own rimewall, its brazier and its crate.
+      Object.freeze({ rowY: 30, fromX: 34, toX: 40, stepMs: 620, sight: 3 }),
     ]),
     boulders: Object.freeze([
       Object.freeze({ id: 'cistern_a', x: 32, y: 22 }),
@@ -1363,7 +1390,8 @@ export const TOWER_FLOORS = Object.freeze([
     down: Object.freeze({ x: 45, y: 24 }),
     door: Object.freeze({ x: 44, y: 24 }),
     patrols: Object.freeze([
-      Object.freeze({ rowY: 20, fromX: 44, toX: 30, stepMs: 500, sight: 5 }),
+      // toX 31, not 30: 30,20 is this floor's table.
+      Object.freeze({ rowY: 20, fromX: 44, toX: 31, stepMs: 500, sight: 5 }),
       Object.freeze({ rowY: 28, fromX: 30, toX: 44, stepMs: 440, sight: 5 }),
     ]),
     /** The bricked arch across the way west. The Stone Hammer opens it. */
@@ -1410,20 +1438,49 @@ export const TOWER_ITEMS = Object.freeze([
     needs: 'brass_key', found: 'THE ASHEN STANDARD.' }),
 ]);
 
-/** The barrels of the guardroom lock, and the plates they must sit on. */
+/**
+ * THE BARRELS OF THE GUARDROOM LOCK, and the plates they must sit on.
+ *
+ * ALL OF IT LIVES IN THE SOUTH YARD, on row 38, because the bailey is a RING:
+ * the keep fills the middle and the only ground wide enough to shove a barrel
+ * along is the strip between the tower's footing and the south wall. The first
+ * cut of these sat at x30-40, y32-36 — which the tower was later built directly
+ * on top of, burying a barrel, a plate and two thirds of the gate in solid
+ * stone. Every coordinate here is checked against the tower's circle by
+ * `25-elderwatch`, so that cannot happen again quietly.
+ *
+ * The push is long and straight and the difficulty is not the route: it is
+ * `watch_south`, who paces that exact row. What stops you in Elderwatch is
+ * people.
+ */
 export const ELDERWATCH_BOULDERS = Object.freeze([
-  Object.freeze({ id: 'yard_a', x: 30, y: 32 }),
-  Object.freeze({ id: 'yard_b', x: 30, y: 36 }),
+  Object.freeze({ id: 'yard_a', x: 40, y: 38 }),
+  Object.freeze({ id: 'yard_b', x: 44, y: 38 }),
 ]);
+/**
+ * The plates, out on the barrels' road at the east end of it.
+ *
+ * THE DOOR IS NOT ON THIS ROW, and that is the whole reason it works. Row 38 is
+ * a one-tile corridor between the guardroom's south wall and the fort's, and a
+ * barrel is SOLID — so a barrel parked anywhere along it cuts the corridor in
+ * two. Both of the first two layouts put the door on row 38 and both sealed
+ * themselves shut the moment the puzzle was solved: under the door, the barrels
+ * walled in the one tile you could step through it from; flanking it, they
+ * walled off the whole approach. The lock opened onto ground you could no
+ * longer reach, which is a worse failure than a lock that does not open.
+ */
 export const ELDERWATCH_PLATES = Object.freeze([
-  Object.freeze({ id: 'yard_a', x: 36, y: 32, gate: 'guardroom' }),
-  Object.freeze({ id: 'yard_b', x: 36, y: 36, gate: 'guardroom' }),
+  Object.freeze({ id: 'yard_a', x: 49, y: 38, gate: 'guardroom' }),
+  Object.freeze({ id: 'yard_b', x: 51, y: 38, gate: 'guardroom' }),
 ]);
+/**
+ * The barred door, in the guardroom's WEST face — reached across the open yard
+ * at x45, which no barrel ever stands on.
+ */
 export const ELDERWATCH_GATES = Object.freeze({
   guardroom: Object.freeze([
-    Object.freeze({ x: 40, y: 33 }),
-    Object.freeze({ x: 40, y: 34 }),
-    Object.freeze({ x: 40, y: 35 }),
+    Object.freeze({ x: 46, y: 34 }),
+    Object.freeze({ x: 46, y: 35 }),
   ]),
 });
 
@@ -1436,8 +1493,19 @@ export const ELDERWATCH_GATES = Object.freeze({
  * it is a garrison that has not been told there is anything to guard.
  */
 export const ELDERWATCH_WATCH = Object.freeze([
-  Object.freeze({ id: 'watch_north', rowY: 20, fromX: 22, toX: 34, stepMs: 520, sight: 4 }),
-  Object.freeze({ id: 'watch_south', rowY: 28, fromX: 34, toX: 22, stepMs: 640, sight: 4 }),
+  // THE BAILEY IS A RING, so the garrison walks one. The first two beats were
+  // rows 20 and 28 across x22-34 — straight through where the keep now stands,
+  // so eight of each watchman's thirteen tiles were inside solid stone and the
+  // yard's whole encounter had quietly stopped happening. A ring needs lanes on
+  // all four sides, and two of those are vertical: hence `colX`.
+  /** The west wall walk — the first thing to time, past the culvert you came in by. */
+  Object.freeze({ id: 'watch_west', colX: 21, fromY: 34, toY: 13, stepMs: 520, sight: 4 }),
+  /** The north yard, in the gap between the two store sheds. */
+  Object.freeze({ id: 'watch_north', rowY: 11, fromX: 31, toX: 45, stepMs: 600, sight: 4 }),
+  /** The east yard, between the north stores and the guardroom. */
+  Object.freeze({ id: 'watch_east', colX: 50, fromY: 17, toY: 30, stepMs: 460, sight: 4 }),
+  /** The south yard — the guardroom's own approach, and the barrels' road. */
+  Object.freeze({ id: 'watch_south', rowY: 38, fromX: 48, toX: 24, stepMs: 700, sight: 5 }),
 ]);
 
 /**
@@ -1491,22 +1559,46 @@ export function platesFor(area) {
  * that a locked door stopped you.
  */
 export const QUEST_SITES = Object.freeze({
+  /**
+   * Elderwatch's GROUND floor has one, in the guardroom: the Codex.
+   *
+   * The Brass Key and the Standard used to lie out here too, in a flat keep at
+   * 44,12 and a guardroom at 50,34. Both went up the tower — see `TOWER_ITEMS`
+   * — and this list was left behind pointing at coordinates the keep is now
+   * built on. What is down here is the reward for the yard's barrels.
+   */
   elderwatch: Object.freeze([
     Object.freeze({
-      item: 'brass_key', x: 50, y: 34, xp: 'brass_key_taken',
-      found: 'The Brass Key — the keep is yours to walk into.',
-    }),
-    Object.freeze({
-      item: 'ashen_standard', x: 44, y: 12, xp: 'standard_taken', needs: 'brass_key',
-      found: 'THE ASHEN STANDARD.',
+      item: 'codex', x: ELDERWATCH.codex.x, y: ELDERWATCH.codex.y, xp: 'codex_taken',
+      found: 'THE CODEX — everything you have seen, written down.',
     }),
   ]),
 });
 
-/** Which quest item opens which door tile, per map. */
-export const DOOR_KEYS = Object.freeze({
-  elderwatch: Object.freeze({ x: 44, y: 22, item: 'brass_key' }),
-});
+/**
+ * Which quest items lie on the ground HERE — this map, this floor.
+ *
+ * Elderwatch is the only map with two answers: the guardroom's Codex at ground
+ * level, and one item per floor of the Keep. Both the world and the server ask
+ * this, so the split lives in one place rather than as the same ternary written
+ * out three times.
+ */
+export function questSitesFor(area, floor = 0) {
+  if (area === AREAS.elderwatch && floor > 0) {
+    return TOWER_ITEMS.filter((q) => q.floor === floor);
+  }
+  return QUEST_SITES[area] || [];
+}
+
+/**
+ * Which quest item opens which door tile, per map.
+ *
+ * EMPTY, and deliberately so. Elderwatch's one locked door was the flat keep's
+ * at 44,22; the Hall's door went up to floor 4 and is carried by that floor's
+ * own `lock`, so the map-level lookup had nothing left but a coordinate buried
+ * in the tower's stone. The table stays because the next map may want one.
+ */
+export const DOOR_KEYS = Object.freeze({});
 
 /** What the Standard's keeper says when you lift it off the stand. */
 export const STANDARD_DIALOGUE = Object.freeze({
@@ -1582,6 +1674,8 @@ export const QUEST_XP = Object.freeze({
   // ELDERWATCH. Getting in is worth something; getting the Standard out is worth
   // the rest of the story.
   culvert_broken: 150,
+  /** The guardroom's barrels, and the journal behind them. */
+  codex_taken: 220,
   brass_key_taken: 200,
   standard_taken: 600,
   woodsman_opened: 180,

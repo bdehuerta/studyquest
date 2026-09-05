@@ -20,8 +20,8 @@ import {
   LAYER_LIFT, LAYER_NAMES, LAYER_COUNT,
   REACHES_GEAR, GEAR_SITES,
   EAST_ROAD, AREA_PUZZLES, bouldersFor, platesFor,
-  ELDERWATCH, ELDERWATCH_WATCH, crossingAt, QUEST_SITES, DOOR_KEYS, QUEST_ITEMS,
-  TOWER, TOWER_FLOORS, TOWER_ITEMS,
+  ELDERWATCH, ELDERWATCH_WATCH, crossingAt, questSitesFor, DOOR_KEYS, QUEST_ITEMS,
+  TOWER, TOWER_FLOORS,
   WARDEN, WISE_CAVE,
   HUT,
   BOAT,
@@ -59,6 +59,7 @@ import {
   WISEMAN_SPRITE,
   GEAR_SPRITE,
   STANDARD_SPRITE,
+  CODEX_SPRITE,
   WATCH_FRAMES,
   WARDEN_FRAMES,
   drawTextOutlined,
@@ -2400,10 +2401,8 @@ export function createGame(canvas) {
 
   /** A quest item lying here that has not been taken yet. */
   function questSiteAt(tx, ty) {
-    const sites = worldArea === AREAS.elderwatch
-      ? TOWER_ITEMS.filter((q) => q.floor === towerFloor)
-      : QUEST_SITES[worldArea];
-    if (!sites) return null;
+    const sites = questSitesFor(worldArea, towerFloor);
+    if (!sites.length) return null;
     const held = (state && state.questItems) || {};
     return sites.find((q) => q.x === tx && q.y === ty && !(Number(held[q.item]) > 0)) || null;
   }
@@ -2448,14 +2447,32 @@ export function createGame(canvas) {
    * Herald's ride: no timer, no accumulated drift, and a reload puts the walker
    * back on the same step rather than wherever it happened to be.
    */
+  /**
+   * WHERE A PATROL IS RIGHT NOW — a pure function of the clock.
+   *
+   * A beat is a LANE, walked end to end and back. Horizontal lanes name a
+   * `rowY` and run `fromX`->`toX`; vertical ones name a `colX` and run
+   * `fromY`->`toY`. Vertical came in with Elderwatch's bailey, which is a RING
+   * around the keep: two of its four sides are columns, and with only rows to
+   * offer, the garrison had been given beats that ran through the tower.
+   *
+   * `dx`/`dy` is the way the watchman is looking, and the axis `patrolSees`
+   * reads down. `dir` is kept for the callers that only ever knew about rows.
+   */
   function pace(beat) {
-    const span = Math.abs(beat.toX - beat.fromX);
+    const vertical = Number.isFinite(beat.colX);
+    const from = vertical ? beat.fromY : beat.fromX;
+    const to = vertical ? beat.toY : beat.toX;
+    const span = Math.abs(to - from);
     if (span <= 0) return null;
     const step = Math.floor(clockMs / beat.stepMs) % (span * 2);
     const forward = step < span;
-    const dir = Math.sign(beat.toX - beat.fromX);
-    const x = forward ? beat.fromX + step * dir : beat.toX - (step - span) * dir;
-    return { x, y: beat.rowY, dir: forward ? dir : -dir, sight: beat.sight };
+    const dir = Math.sign(to - from);
+    const at = forward ? from + step * dir : to - (step - span) * dir;
+    const d = forward ? dir : -dir;
+    return vertical
+      ? { x: beat.colX, y: at, dx: 0, dy: d, dir: d, sight: beat.sight }
+      : { x: at, y: beat.rowY, dx: d, dy: 0, dir: d, sight: beat.sight };
   }
 
   function wardenState() {
@@ -2478,11 +2495,22 @@ export function createGame(canvas) {
     return [];
   }
 
-  /** Are you standing in a line somebody is looking down? */
+  /**
+   * Are you standing in a line somebody is looking down?
+   *
+   * Down the lane he walks, whichever axis that is. A watchman on a column
+   * looks up or down it; one on a row looks along it.
+   */
   function patrolSees() {
     for (const w of patrolList()) {
-      if (player.tileY() !== w.y) continue;
-      const ahead = (player.tileX() - w.x) * w.dir;
+      let ahead;
+      if (w.dy) {
+        if (player.tileX() !== w.x) continue;
+        ahead = (player.tileY() - w.y) * w.dy;
+      } else {
+        if (player.tileY() !== w.y) continue;
+        ahead = (player.tileX() - w.x) * w.dx;
+      }
       if (ahead > 0 && ahead <= w.sight) return true;
     }
     return false;
@@ -3673,9 +3701,7 @@ export function createGame(canvas) {
         if (hasGear(g.gear)) continue;
         drawables.push({ sortY: (g.y + 1) * TILE - liftAt(g.x, g.y), kind: 'g', ref: g });
       }
-      const sites = worldArea === AREAS.elderwatch
-        ? TOWER_ITEMS.filter((q) => q.floor === towerFloor)
-        : (QUEST_SITES[worldArea] || []);
+      const sites = questSitesFor(worldArea, towerFloor);
       for (const q of sites) {
         if (holdsItem(q.item)) continue;
         drawables.push({ sortY: (q.y + 1) * TILE - liftAt(q.x, q.y), kind: 'q', ref: q });
@@ -3725,8 +3751,14 @@ export function createGame(canvas) {
         mountainShadow(d.ref.x, d.ref.y, 8);
         const bob = Math.round(Math.sin(clockMs / 420 + d.ref.x) * 1.5);
         const p2 = mountainAt(d.ref.x, d.ref.y, bob - 3);
-        drawSprite(ctx, d.ref.item === 'ashen_standard' ? STANDARD_SPRITE : GEAR_SPRITE,
-          p2.px, p2.py, S);
+        // Each of the three has its own art. Drawn as a gear cache they were
+        // three identical crates, and "the thing you came for" is the one
+        // object on a map that must not look like scenery.
+        const QUEST_SPRITE = {
+          ashen_standard: STANDARD_SPRITE,
+          codex: CODEX_SPRITE,
+        };
+        drawSprite(ctx, QUEST_SPRITE[d.ref.item] || GEAR_SPRITE, p2.px, p2.py, S);
       } else if (d.kind === 'w') {
         mountainShadow(d.ref.x, d.ref.y, 10);
         const q = mountainAt(d.ref.x, d.ref.y, -4);

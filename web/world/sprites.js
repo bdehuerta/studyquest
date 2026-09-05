@@ -2612,6 +2612,32 @@ export const PLATE_DOWN_SPRITE = makeSprite(PLATE_DOWN_0, PAL, { w: 16, h: 16, l
 export const WISEMAN_SPRITE = makeSprite(WISEMAN_0, PAL, { w: 16, h: 16, label: 'wiseman' });
 export const GEAR_SPRITE = makeSprite(GEAR_CACHE_0, PAL, { w: 16, h: 16, label: 'gearCache' });
 export const STANDARD_SPRITE = makeSprite(STANDARD_0, PAL, { w: 16, h: 16, label: 'standard' });
+/**
+ * THE CODEX, lying open on the guardroom table.
+ *
+ * Open rather than shut, and drawn from above at the same three-quarter angle
+ * as everything else: a closed book on a table is a brown rectangle, and this
+ * is the one object in Elderwatch a player has to want to walk towards.
+ */
+const CODEX_0 = [
+  '................',
+  '................',
+  '.....000000.....',
+  '....0jjjjjj0....',
+  '...0jllmmll j...',
+  '..0jlmmmmmmlj0..',
+  '..0lmmmmmmmml0..',
+  '..0lmdmmmmdml0..',
+  '..0lmmdmmdmml0..',
+  '..0lmdmmmmdml0..',
+  '..0lmmmmmmmml0..',
+  '..0jlmmmmmmlj0..',
+  '...0jllmmllj0...',
+  '....0jjjjjj0....',
+  '.....000000.....',
+  '......0110......',
+];
+export const CODEX_SPRITE = makeSprite(CODEX_0, PAL, { w: 16, h: 16, label: 'codex' });
 /** The Elderwatch watch, on their rounds. Two frames, like the Warden. */
 export const WATCH_FRAMES = Object.freeze([
   makeSprite(WATCH_A, PAL, { w: 16, h: 16, label: 'watch0' }),

@@ -67,6 +67,8 @@ const FILL = `
 const fill = (result) => FILL.replace('RESULT', result);
 
 const YARD = '25,25';
+// A tile inside the guardroom, behind the barred door.
+const GUARDROOM = '49,34';
 
 export default {
   name: 'Elderwatch — a culvert, a watch, a barred door and a keyed keep',
@@ -167,6 +169,121 @@ export default {
       expr: fill(`return seen.has('${YARD}');`),
       equals: true,
     },
+
+    { type: 'note', text: 'THE YARD. Two barrels, two plates, and the guardroom behind them.' },
+    {
+      // THE REGRESSION THIS SUITE MISSED. When the keep became a tower it was
+      // built on top of this puzzle: a barrel, a plate and two thirds of the
+      // gate ended up inside solid stone, and every suite still passed, because
+      // a buried barrel throws no error. So the yard is now PLAYED, not merely
+      // declared — pushed, opened, walked through.
+      type: 'assert', label: 'the guardroom is shut',
+      expr: fill(`return seen.has('${GUARDROOM}');`),
+      equals: false,
+    },
+    {
+      type: 'assert', label: 'and the watch walk a ring, not the inside of the keep',
+      expr: "return window.__sqWorld.getMountain().patrols;", equals: 4,
+    },
+    // The far barrel first. Park the near one on its plate and the far one can
+    // no longer get past it — recoverable, but only by knowing to shove it on.
+    ...[[44, 51], [40, 49]].flatMap(([from, to]) => {
+      const steps = [];
+      for (let x = from; x < to; x += 1) {
+        steps.push({
+          type: 'api', route: '/api/player/move', body: { x: x - 1, y: 38 }, expectOk: true,
+          label: `behind the barrel at ${x},38`,
+        });
+        steps.push({
+          type: 'api', route: '/api/reaches/push', body: { x, y: 38, dx: 1, dy: 0 }, expectOk: true,
+          label: `roll it to ${x + 1},38`,
+        });
+      }
+      return steps;
+    }),
+    {
+      type: 'eval', label: 'pull it into the page',
+      expr: "return window.sqMenu.reloadState().then(() => 'reloaded');",
+    },
+    { type: 'wait', ms: 700 },
+    {
+      type: 'assert', label: 'both plates held, and the barred door lifts',
+      expr: "return window.__sqWorld.getMountain().gateOpen.guardroom;", equals: true,
+    },
+    {
+      type: 'assert', label: 'and the guardroom is walkable now',
+      expr: fill(`return seen.has('${GUARDROOM}');`),
+      equals: true,
+    },
+    { type: 'screenshot', file: 'v8-yard.png' },
+
+    { type: 'note', text: 'THE CODEX, on the table at the back of it.' },
+    {
+      type: 'assert', label: 'no journal, no panel',
+      expr: "return window.__sqPanels.codex.isAvailable();", equals: false,
+    },
+    {
+      type: 'eval', label: 'take the Codex off the table',
+      expr: `
+        window.__sqCodex = 'pending';
+        window.__sqWorld.setPlayerTile(49, 34);
+        setTimeout(() => {
+          Promise.resolve(window.__sqWorld.onTakeQuestItem('codex'))
+            .then((j) => { window.__sqCodex = j; }, (e) => { window.__sqCodex = { ok: false, error: e.message }; });
+        }, 300);
+        return 'sent';
+      `,
+    },
+    {
+      type: 'waitFor', timeoutMs: 8000, label: 'it comes off the table',
+      expr: "if (window.__sqCodex === 'pending') return false; if (!window.__sqCodex.ok) throw new Error(window.__sqCodex.error); return true;",
+    },
+    {
+      type: 'eval', label: 'pull it into the page',
+      expr: "return window.sqMenu.reloadState().then(() => 'reloaded');",
+    },
+    { type: 'wait', ms: 600 },
+    {
+      type: 'assert', label: 'and it pays what the yard was worth',
+      expr: "return window.__sqCodex.xp;", equals: 220,
+    },
+    {
+      type: 'assert', label: 'the panel is available now',
+      expr: "return window.__sqPanels.codex.isAvailable();", equals: true,
+    },
+    {
+      type: 'eval', label: 'open it',
+      expr: "return String(window.__sqPanels.codex.open());",
+    },
+    { type: 'wait', ms: 500 },
+    {
+      // IT ALREADY KNOWS WHERE YOU HAVE BEEN. The sweep runs from the first
+      // save, so a journal found late is a journal found FULL — which is the
+      // whole reason it can be a reward rather than a tutorial.
+      type: 'assert', label: 'it opened already knowing everywhere she had been',
+      expr: `
+        const seenIds = window.__sqPanels.codex.page().rows.filter((r) => r.known).map((r) => r.id);
+        window.__sqPanels.codex.selectTab('place');
+        const places = window.__sqPanels.codex.page().rows.filter((r) => r.known).map((r) => r.id);
+        return places.sort().join(',');
+      `,
+      // NOT the_keep: she has not climbed a stair yet, and the Codex is a record
+      // of what she has seen rather than of what the map contains.
+      equals: 'elderwatch,home,peaks,summit_cave',
+    },
+    {
+      // The blanks are the feature: a page showing only what you have found
+      // would look finished the moment you found one thing.
+      type: 'assert', label: 'and the unfound are drawn as blanks, not dropped',
+      expr: `
+        window.__sqPanels.codex.selectTab('material');
+        const s = window.__sqPanels.codex.shown();
+        return s.cards === 11 && s.blanks > 0 && s.blanks < 11;
+      `,
+      equals: true,
+    },
+    { type: 'screenshot', file: 'v8-codex.png' },
+    { type: 'eval', label: 'shut it', expr: "window.__sqPanels.codex.close(); return 'closed';" },
 
     { type: 'note', text: 'THE KEEP. Four floors, and the map greys out around each one.' },
     {

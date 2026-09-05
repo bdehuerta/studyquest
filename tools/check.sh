@@ -7,6 +7,10 @@
 #   3. do the id lists in shared/constants.js match the modules that implement
 #      them? (recipes.js asserts this AT LOAD, so a mismatch is not a missing
 #      item — it is a throw inside an import that takes the whole app down.)
+#   4. does every declared coordinate — boulder, plate, gate, patrol lane, quest
+#      item, stair, lock — stand on ground the generated map actually has? The
+#      Keep of Elderwatch was built on top of the yard puzzle and nothing
+#      noticed, because a buried barrel throws no error.
 #
 # Run this before anything slower. Exit 0 = green, 1 = something is broken.
 #
@@ -41,7 +45,7 @@ FAILED=0
 command -v node >/dev/null 2>&1 || { printf '%s✗ node is not on PATH — nothing can be checked%s\n' "$R" "$X"; exit 1; }
 
 # ── 1. syntax ────────────────────────────────────────────────────────────────
-bold "1/3  syntax"
+bold "1/4  syntax"
 
 # `find -print0` + a while loop, because a filename with a space must not split.
 SYNTAX_BAD=0
@@ -65,15 +69,23 @@ else
 fi
 
 # ── 2. import paths ──────────────────────────────────────────────────────────
-bold "2/3  import paths"
+bold "2/4  import paths"
 if node "$ROOT/tools/lib/imports.mjs"; then :; else FAILED=1; fi
 
 # ── 3. id lists vs data modules ──────────────────────────────────────────────
-bold "3/3  id lists vs data modules"
+bold "3/4  id lists vs data modules"
 if [ "$SYNTAX_BAD" -ne 0 ]; then
   printf '  %s~%s skipped — fix the syntax errors first, the modules cannot be imported\n' "$Y" "$X"
 else
   if node "$ROOT/tools/lib/idcheck.mjs" $STRICT; then :; else FAILED=1; fi
+fi
+
+# ── 4. declared coordinates vs the map that gets generated ───────────────────
+bold "4/4  map geometry"
+if [ "$SYNTAX_BAD" -ne 0 ]; then
+  printf '  %s~%s skipped — fix the syntax errors first, the map cannot be generated\n' "$Y" "$X"
+else
+  if node "$ROOT/tools/lib/geometry.mjs"; then :; else FAILED=1; fi
 fi
 
 # ── verdict ──────────────────────────────────────────────────────────────────

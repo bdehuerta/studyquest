@@ -645,6 +645,11 @@ function syncDock() {
   for (const btn of document.querySelectorAll('#dock button')) {
     const p = panels[btn.dataset.panel];
     if (!p) { btn.remove(); continue; }
+    // A PANEL MAY NOT EXIST YET IN THE FICTION. The Codex is an object you find
+    // in Elderwatch, so advertising its button from the first minute would both
+    // spoil it and offer a control that refuses. `isAvailable` is optional;
+    // a panel without one is always on the dock.
+    if (typeof p.isAvailable === 'function') btn.hidden = !p.isAvailable();
     btn.setAttribute('aria-pressed', String(p.isOpen()));
   }
 }
@@ -704,6 +709,9 @@ window.addEventListener('keydown', (e) => {
   }
   if (k === 'q') { e.preventDefault(); toggle('tasks'); }
   if (k === 'tab') { e.preventDefault(); toggle('inventory'); }
+  // J for journal. The panel refuses to open until the Codex is in the pack,
+  // and says why — see `setOnDenied` below.
+  if (k === 'j') { e.preventDefault(); toggle('codex'); }
 });
 
 // v2 panels land incrementally; a missing one must not take the app down with
@@ -713,6 +721,7 @@ async function loadOptionalPanels() {
     ['shops', './ui/shops.js', 'createShops'],
     ['importer', './ui/importer.js', 'createImporter'],
     ['inventory', './ui/inventory.js', 'createInventory'],
+    ['codex', './ui/codex.js', 'createCodex'],
   ];
   for (const [name, path, factory] of optional) {
     try {
@@ -720,6 +729,12 @@ async function loadOptionalPanels() {
       panels[name] = mod[factory](overlay, api);
       listeners.push((s2) => panels[name].setState(s2));
       if (state) panels[name].setState(state);
+      listeners.push(() => syncDock());
+      if (name === 'codex' && typeof panels.codex.setOnDenied === 'function') {
+        panels.codex.setOnDenied(() => {
+          game.toast('you have no journal to write in', '#c8b48a');
+        });
+      }
     } catch (err) {
       console.warn(`optional panel "${name}" not available:`, err.message);
       const btn = document.querySelector(`#dock button[data-panel="${name}"]`);

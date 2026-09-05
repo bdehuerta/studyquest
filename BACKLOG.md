@@ -1456,6 +1456,115 @@ the halo also covers, and it failed — correctly. The test was wrong, not the
 rule.
 
 ---
+## DONE 2026-09-05 (5) — the tower was built on the yard, and the Codex
+
+Bruno, on picking the session back up: *"some of the changes we made last
+session have overlapped with previous features of the elderwatch map block, like
+the stones you move to activate some blocks."* He was right, and it was worse
+than the stones.
+
+### WHAT THE KEEP LANDED ON
+
+The tower went up in the middle of a bailey that already had a puzzle in it.
+Measured against its circle:
+
+  * barrel `yard_a`, plate `yard_a` and TWO OF THE THREE gate tiles — inside the
+    tower's solid bulk.
+  * the old flat keep's locked door at 44,22 — inside the tower's solid bulk.
+  * BOTH WATCHMEN — eight of each one's thirteen tiles inside the tower. The
+    bailey's entire encounter had stopped happening.
+
+**All 25 suites passed the whole time, and had to.** Nothing threw; the map
+still built. A buried barrel raises no error. This is the project's signature
+failure mode wearing a new coat, and the fix is a new pre-flight stage rather
+than another suite: `tools/lib/geometry.mjs` generates the real map with the
+real worldgen and asserts that every declared coordinate — boulder, plate, gate,
+patrol lane, quest item, stair, lock — stands on a tile a scholar could be on.
+It found EIGHT on its first run. Five of them shipped with the tower: three of
+the Keep's own patrols pace through their own braziers, crates and walls.
+
+### THE YARD, RE-SITED — AND TWO LAYOUTS THAT SEALED THEMSELVES SHUT
+
+The barrels now roll east along row 38, the strip between the tower's footing
+and the south wall, which is the only ground in a RING-SHAPED bailey wide enough
+to shove one along. The difficulty is not the route: it is `watch_south`, who
+paces that exact row.
+
+Getting the door right took two wrong answers, both of the same shape and both
+caught by playing the puzzle in the suite rather than declaring it:
+
+  * plates UNDER the door (49 and 51, door 49-51): solved, the two barrels
+    walled in 50,38 — the one tile you could step through the door from.
+  * plates FLANKING it (47 and 53): solved, they cut the one-wide corridor in
+    two and walled off the whole approach.
+
+A barrel is SOLID, so on a one-tile corridor every barrel is a wall. **The door
+moved to the guardroom's WEST face**, reached across open yard at x45, which no
+barrel ever stands on. A lock that opens onto ground you can no longer reach is
+worse than a lock that does not open.
+
+### THE WATCH WALK A RING
+
+Four of them, one to a side, because the bailey IS a ring. Two of those sides
+are columns, so a beat is a LANE now rather than a row: `colX`/`fromY`/`toY`
+alongside `rowY`/`fromX`/`toX`, and `patrolSees` reads down whichever axis the
+watchman walks. The sprite never used the facing, so the render cost nothing.
+
+### TWO SERVER BUGS THAT SHIPPED WITH THE TOWER
+
+  * **The Cistern's barrels never reset.** Caught on floor two, `routeReachesReset`
+    put the BAILEY's barrels back and left the Cistern's exactly where they were
+    — so a barrel shoved into that floor's dead end stayed there for the life of
+    the save and its gate could never be opened again. It resets the room you
+    are actually in now, and returns you to that floor's own door.
+  * **Plates leaked across floors.** `platesHeld` scoped with a bare
+    `startsWith('elderwatch:')`, which also matches `elderwatch:f2:cistern_a`, so
+    a barrel two floors up could hold a plate down in the bailey. `routeReachesPush`
+    had the `:f` guard and this did not. One `boulderScope()` writes the rule now
+    and both read it.
+
+### AND A RESET THAT IS NOT A PUNISHMENT
+
+Arriving in Elderwatch puts the yard's barrels back. Sokoban's oldest rule is
+that every push must be undoable; these are not, because there is nowhere to
+stand behind a barrel against a wall. Being caught was the only undo, and a
+careful player is never caught — which left them holding an unsolvable lock.
+
+### THE CODEX
+
+Bruno's answer to what should be behind the barred door: the journal off the
+backlog (item 14b). It is a quest item lying on the guardroom table, with its
+own sprite, worth 220 xp — and `[J]` refuses to open until it is in the pack,
+because a menu that works before you have found the object it represents is not
+a discovery, it is a tab. No dock button either, until then.
+
+**63 entries in 8 categories** — materials, buildings, tools, gadgets, places,
+people, relics, and the Rules of the World: the things the game never says out
+loud, each unlocked at the moment a player first has the question. Unfound
+entries are drawn as `??????` rather than dropped, because a page showing only
+what you have found looks finished the moment you find one thing.
+
+THE PART WORTH KEEPING is that **discovery is DERIVED, not reported**. Every
+entry owns a predicate over the save, and one sweep unions in whatever is true.
+The alternative was a `record(...)` call at each of the seven places materials
+are granted and so on for every category — a feature wired to six of its seven
+sites, passing every test because nothing throws at the seventh. A predicate has
+no call sites to forget. It hangs off the single `persist` wrapper all 46 routes
+already go through.
+
+The set is a HIGH-WATER MARK: `materials.ironwood > 0` is false the moment you
+spend the last one, and knowing a material is not holding one. And the sweep has
+run since the first save, so the day you lift the book off the table it is
+already full of everywhere you have been — which is what lets a journal found
+late be a reward instead of a tutorial.
+
+### STILL OPEN
+
+The Codex has no QUESTS tab yet. Bruno asked for "quests you make" alongside the
+items, and `questsDone` is on the save but nothing hand-authored fills it — that
+waits on backlog 11-13, the tasks/quests split and the billboard catalogue.
+
+---
 ## DONE 2026-09-05 (4) — the Keep: Elderwatch becomes a tower
 
 Bruno liked the castle and the ring, and asked for a TOWER: circular floors,

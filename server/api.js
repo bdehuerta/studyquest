@@ -75,15 +75,15 @@ import {
   crossingAt,
   AREA_NAMES,
   STANDARD_DIALOGUE,
-  QUEST_SITES,
+  questSitesFor,
   QUEST_ITEMS as QUEST_ITEM_DEFS,
   AREA_PUZZLES,
   bouldersFor,
   platesFor,
   TOWER,
   TOWER_FLOORS,
-  TOWER_ITEMS,
 } from '../shared/constants.js';
+import { sweepCodex } from '../shared/codex.js';
 
 import {
   computeTaskPayout,
@@ -1148,7 +1148,12 @@ export async function handleApi(pathname, body, state, save) {
   try {
     const route = String(pathname || '').replace(/\/+$/, '') || '/';
     const b = isObj(body) ? body : {};
-    const persist = typeof save === 'function' ? save : () => {};
+    // EVERY PERSIST SWEEPS THE CODEX. One wrapper, rather than a `record(...)`
+    // at each of the ~40 places something discoverable happens — the Codex has
+    // no call sites to forget, so a route added next year is covered by having
+    // been written at all. See shared/codex.js.
+    const write = typeof save === 'function' ? save : () => {};
+    const persist = (s) => { sweepCodex(s); return write(s); };
 
     if (!isObj(state)) return fail('server state is not initialised', 500);
 
@@ -3153,6 +3158,13 @@ function routeTravel(b, state, save) {
   // back on your feet, or the boat would follow you into the mountains.
   const boat = boatOf(state);
   boat.riding = false;
+  // ARRIVING RESETS THE YARD. Elderwatch's barrels roll along one open row with
+  // a wall at each end, and a barrel against a wall can never be pushed back —
+  // there is nowhere to stand behind it. Being caught is the in-fiction undo,
+  // but a careful player may simply never be caught, and would then be left
+  // with a lock that cannot be opened on that save. Walking out and back in is
+  // the undo that is always available.
+  if (to === AREAS.elderwatch) resetRoom(state, AREAS.elderwatch, 0);
 
   const ARRIVALS = {
     peaks: 'The road climbs, the air thins, and the trees go from green to black. '
@@ -3307,13 +3319,11 @@ function routeReachesGear(b, state, save) {
 function routeReachesPush(b, state, save) {
   const area = areaOf(state);
   const floor = towerFloorOf(state);
-  const scope = floor > 0 ? `${area}:f${floor}:` : `${area}:`;
   if (!AREA_PUZZLES[area] && floor === 0) return fail('there is nothing to push here.');
   const r = reachesOf(state);
-  // Only the boulders on THIS floor of THIS map. A prefix, not a filter over
-  // everything: the Keep has a set per floor and they share their names.
-  const mine = (k) => k.indexOf(scope) === 0
-    && (floor > 0 || k.indexOf(':f') === -1);
+  // Only the boulders on THIS floor of THIS map: the Keep has a set per floor
+  // and they share their names.
+  const mine = boulderScope(area, floor);
   const x = Math.round(num(b.x) ?? NaN);
   const y = Math.round(num(b.y) ?? NaN);
   const dx = Math.round(num(b.dx) ?? 0);
@@ -3344,21 +3354,63 @@ function routeReachesPush(b, state, save) {
   return ok({ state, id, at: { x: tx, y: ty }, plates: platesHeld(state) });
 }
 
+/**
+ * DOES THIS BOULDER KEY BELONG TO THIS ROOM? One rule, in one place.
+ *
+ * Ground level is `area:id` and a tower floor is `area:fN:id`, so a bare
+ * `startsWith('elderwatch:')` matches BOTH — and `platesHeld` used exactly
+ * that, which let a barrel two floors up hold a plate down in the bailey.
+ * `routeReachesPush` had the `:f` guard and this did not; now neither writes
+ * the rule itself.
+ */
+function boulderScope(area, floor) {
+  const prefix = floor > 0 ? `${area}:f${floor}:` : `${area}:`;
+  return (k) => k.indexOf(prefix) === 0 && (floor > 0 || k.indexOf(':f') === -1);
+}
+
+/** Every boulder that belongs to this room, and where it is. */
+function bouldersHere(state, area, floor) {
+  const mine = boulderScope(area, floor);
+  return Object.entries(reachesOf(state).boulders).filter(([k]) => mine(k));
+}
+
+/** The furniture of the room you are in: a tower floor's, or the map's. */
+function puzzleHere(area, floor) {
+  if (floor > 0) {
+    const f = TOWER_FLOORS[floor - 1] || {};
+    return { boulders: f.boulders || [], plates: f.plates || [] };
+  }
+  return { boulders: bouldersFor(area), plates: platesFor(area) };
+}
+
 /** Which plates have a boulder on them right now. */
 function platesHeld(state, area = areaOf(state)) {
-  const r = reachesOf(state);
   const floor = area === AREAS.elderwatch ? towerFloorOf(state) : 0;
-  const scope = floor > 0 ? `${area}:f${floor}:` : `${area}:`;
-  const plates = floor > 0
-    ? ((TOWER_FLOORS[floor - 1] || {}).plates || [])
-    : platesFor(area);
+  const here = bouldersHere(state, area, floor);
   const held = [];
-  for (const p of plates) {
-    const on = Object.entries(r.boulders).some(([k, bl]) =>
-      k.indexOf(scope) === 0 && bl && bl.x === p.x && bl.y === p.y);
-    if (on) held.push(p.id || `${p.x},${p.y}`);
+  for (const p of puzzleHere(area, floor).plates) {
+    if (here.some(([, bl]) => bl && bl.x === p.x && bl.y === p.y)) {
+      held.push(p.id || `${p.x},${p.y}`);
+    }
   }
   return held;
+}
+
+/**
+ * PUT ONE ROOM'S BOULDERS BACK WHERE THEY STARTED.
+ *
+ * Used by being caught, and by arriving on a map. Sokoban's oldest rule is that
+ * every push must be undoable; these are not — a barrel shoved against a wall
+ * on the yard's one open row can never be shoved back, because there is nowhere
+ * to stand behind it. A reset is what stands in for an undo, so the room has to
+ * be genuinely restorable rather than restorable-if-a-watchman-happens-to-see-you.
+ */
+function resetRoom(state, area, floor) {
+  const r = reachesOf(state);
+  const prefix = floor > 0 ? `${area}:f${floor}:` : `${area}:`;
+  for (const b of puzzleHere(area, floor).boulders) {
+    r.boulders[`${prefix}${b.id}`] = { x: b.x, y: b.y };
+  }
 }
 
 /**
@@ -3369,13 +3421,21 @@ function platesHeld(state, area = areaOf(state)) {
 function routeReachesReset(b, state, save) {
   const r = reachesOf(state);
   const area = areaOf(state);
-  // Caught in Elderwatch, the yard's barrels go back too. Same rule, other map:
-  // losing a room costs you that room.
+  const floor = area === AREAS.elderwatch ? towerFloorOf(state) : 0;
+  // THE ROOM YOU ARE ACTUALLY IN. Caught on the Cistern floor, this used to put
+  // the BAILEY's barrels back and leave the Cistern's exactly where they were —
+  // so a barrel shoved into that floor's one dead end stayed there for the life
+  // of the save, and the gate it was meant to open could never be opened again.
   if (area === AREAS.elderwatch) {
-    for (const bl of bouldersFor(area)) r.boulders[`${area}:${bl.id}`] = { x: bl.x, y: bl.y };
+    resetRoom(state, area, floor);
     save(state);
-    return ok({ state, at: { ...AREA_PUZZLES[area].door } });
+    const door = floor > 0
+      ? (TOWER_FLOORS[floor - 1] || {}).door
+      : AREA_PUZZLES[area].door;
+    return ok({ state, at: { ...door } });
   }
+  // The mountain: the Warden's three go back and the terrace puzzle below is
+  // left alone, because losing a room should cost you that room and nothing else.
   for (const boulder of WARDEN.boulders) {
     r.boulders[`${AREAS.peaks}:${boulder.id}`] = { x: boulder.x, y: boulder.y };
   }
@@ -3470,9 +3530,7 @@ function routeQuestTake(b, state, save) {
   const floor = towerFloorOf(state);
   // Elderwatch's two are up the Keep, one floor each; everywhere else they lie
   // on the map.
-  const sites = area === AREAS.elderwatch
-    ? TOWER_ITEMS.filter((q) => q.floor === floor)
-    : (QUEST_SITES[area] || []);
+  const sites = questSitesFor(area, floor);
   const wanted = typeof b.item === 'string' ? b.item : '';
   const site = sites.find((q) => q.item === wanted);
   if (!site) return fail(`there is no ${wanted || 'such thing'} to be had here.`);

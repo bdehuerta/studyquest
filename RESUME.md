@@ -5,9 +5,48 @@ Cold-start here. Run `node server.js` (dev, :7777) or `open dist/StudyQuest.app`
 
 ---
 
+## WHERE THE LAST SESSION LEFT IT (2026-09-05)
+
+The Keep of Elderwatch had been built directly on top of the bailey's yard
+puzzle — a barrel, a plate, two thirds of a gate, the old keep's locked door and
+BOTH watchmen were inside solid stone, and all 25 suites passed anyway. That is
+fixed, the yard is re-sited and re-playable, and **the Codex is in** (backlog
+14b), found behind the guardroom's barred door. Full write-up at the top of
+`BACKLOG.md`; the map's own notes are in `ELDERWATCH.md`.
+
+**The new guard rail: `tools/lib/geometry.mjs`, stage 4 of `./tools/check.sh`.**
+It generates the real map and asserts every declared coordinate stands on ground
+that exists. Run it before trusting any map change — the smoke suites will not
+catch a buried one.
+
+Testing, in order: `./tools/check.sh` (fast, no browser) then
+`node tools/smoke.mjs` (25 CDP suites, ~4 min). Never point tests at
+`~/Library/Application Support/StudyQuest/` — use a scratch `SQ_DATA_DIR`.
+
+### The Codex, in one paragraph
+`shared/codex.js` holds 63 entries in 8 categories. Discovery is DERIVED: each
+entry owns a predicate over the save and one sweep, hung off the single
+`persist` wrapper in `server/api.js`, unions in whatever is true. There is
+nothing to call and nothing to forget. The set is a high-water mark. `[J]` opens
+`web/ui/codex.js`, and refuses until the book is in the pack.
+
+### Next on the Codex
+It has no QUESTS tab. Bruno asked for "quests you make" alongside the items;
+`questsDone` exists on the save but nothing hand-authored fills it. That waits
+on backlog 11-13 (tasks/quests split, NPCs, the billboard catalogue).
+
+---
+
 ## AGREED SCOPE FOR NEXT SESSION
 
-### 1. Launch menu / title screen  ← the headline piece
+
+### ~~1. Launch menu / title screen~~ — SHIPPED (`web/ui/launch.js`)
+### ~~2. Inventory~~ — SHIPPED on `[Tab]` (`web/ui/inventory.js`)
+### The keys as they actually stand
+W A S D move · E interact · 1/2 select a slot · P boat · L saves · Q quests ·
+Tab inventory · **J codex** · Esc unwinds. Free and obvious next: X, R, F, G.
+
+### 1. (was 1) Launch menu / title screen  ← DONE, kept for the record
 A GUI that appears **on launch, before the game world**, and is the *only* place
 saves are managed. Requirements as stated by the user:
 

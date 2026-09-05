@@ -321,6 +321,12 @@ export function defaultState() {
     reaches: { gear: [], boulders: {}, warden: { beaten: false } },
     // v8: which floor of the Keep of Elderwatch you are on, 0 for the bailey.
     tower: { floor: 0 },
+    // v9: THE CODEX. `seen` is a flat list of `category:id` keys and is a
+    // HIGH-WATER MARK — swept in by shared/codex.js on every persist and never
+    // taken out again, because knowing a material is not the same as holding
+    // one. The book itself is a quest item; this fills in whether you have
+    // found it or not, so the day you do it is already full.
+    codex: { seen: [] },
     // v6 — the second map. `area` is where the scholar is standing; `areaPos`
     // remembers the last tile in each, so walking back and forth does not dump
     // you at a fixed spot every time.

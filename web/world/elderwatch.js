@@ -19,7 +19,7 @@
 import {
   WORLD_W, WORLD_H, TILE_TYPES,
   crossingRows,
-  ELDERWATCH, TOWER, TOWER_FLOORS,
+  ELDERWATCH, ELDERWATCH_GATES, ELDERWATCH_PLATES, TOWER, TOWER_FLOORS,
 } from '../../shared/constants.js';
 
 const T = TILE_TYPES;
@@ -94,8 +94,10 @@ export function buildElderwatch(seed) {
     [22, 24, 34, 26], [34, 30, 40, 36], [40, 20, 50, 22],
   ];
   for (const [x0, y0, x1, y1] of cobbles) floor(x0, y0, x1, y1, T.path);
-  // sheds and stores along the north and east walls
-  for (const [x0, y0, x1, y1] of [[22, 11, 30, 14], [46, 11, 52, 15], [46, 32, 53, 37]]) {
+  // sheds and stores along the north and east walls. The south-east one is NOT
+  // here: that rectangle is the guardroom, and it gets a barred door rather
+  // than a doorway (step 6).
+  for (const [x0, y0, x1, y1] of [[22, 11, 30, 14], [46, 11, 52, 15]]) {
     ring(x0, y0, x1, y1, T.rimewall);
     floor(x0 + 1, y0 + 1, x1 - 1, y1 - 1, T.rockfloor);
     put(Math.round((x0 + x1) / 2), y1, T.rockfloor);   // a doorway
@@ -103,8 +105,10 @@ export function buildElderwatch(seed) {
   // the well
   for (const [x, y] of [[26, 30], [27, 30], [26, 31], [27, 31]]) put(x, y, T.stone);
   // and a scatter of stacked stone around the yard's edges
+  // NOT on column 21 — that is `watch_west`'s lane, and two stones parked on
+  // it walled the wall-walk shut.
   for (const [x, y] of [
-    [21, 18], [21, 19], [31, 12], [44, 34], [45, 34], [52, 26], [52, 27], [23, 36], [24, 36],
+    [20, 18], [20, 19], [31, 12], [44, 34], [45, 34], [52, 26], [52, 27], [23, 36], [24, 36],
   ]) put(x, y, T.stone);
 
   // ---- 5. THE KEEP: a ROUND TOWER in the middle of the bailey, with its door
@@ -123,7 +127,27 @@ export function buildElderwatch(seed) {
   put(TOWER.doorX, TOWER.doorY + 1, T.rockfloor);
   for (let y = TOWER.doorY + 1; y <= W.y1 - 2; y += 1) put(TOWER.doorX, y, T.path);
 
-  // ---- 6. seal the map, leaving the road west open.
+  // ---- 6. THE GUARDROOM, south-east against the wall, behind a barred door
+  //         held by two plates. The last room of the flat fort: when the keep
+  //         became a tower it landed on the old guardroom AND on the barrels
+  //         that opened it, so the whole lock moved out here to the yard's edge
+  //         where there is ground wide enough to shove a barrel along.
+  const G = ELDERWATCH.guardroom;
+  ring(G.x0, G.y0, G.x1, G.y1, T.rimewall);
+  floor(G.x0 + 1, G.y0 + 1, G.x1 - 1, G.y1 - 1, T.rockfloor);
+  // THE BARREL ROAD FIRST, THE PLATES ON TOP OF IT. The row the barrels are
+  // shoved along has to be plain walkable ground the whole way — and cobbling
+  // it after laying the plates would pave straight over them, which is the same
+  // ordering bug the grove's door and the Reaches' labyrinth both taught.
+  floor(24, G.y1 + 1, G.x1 + 1, G.y1 + 1, T.path);
+  for (const g of ELDERWATCH_GATES.guardroom) put(g.x, g.y, T.icegate);
+  for (const p of ELDERWATCH_PLATES) put(p.x, p.y, T.plate);
+  put(ELDERWATCH.codex.x, ELDERWATCH.codex.y, T.rockfloor);
+  // a table and a brazier, so the room reads as somewhere people sat
+  put(G.x0 + 1, G.y0 + 1, T.crate);
+  put(G.x1 - 1, G.y0 + 1, T.brazier);
+
+  // ---- 7. seal the map, leaving the road west open.
   for (let x = 0; x < WORLD_W; x += 1) { put(x, 0, T.stone); put(x, WORLD_H - 1, T.stone); }
   for (let y = 0; y < WORLD_H; y += 1) {
     put(WORLD_W - 1, y, T.stone);
