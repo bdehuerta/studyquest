@@ -230,7 +230,10 @@ export function buildReaches(seed) {
     (x, y) => { put(x, y, T.cliff); lay(x, y, 4); });
   rect(WISE_CAVE.x, WISE_CAVE.y, WISE_CAVE.x + WISE_CAVE.w - 1, WISE_CAVE.y + WISE_CAVE.h - 1,
     (x, y) => { put(x, y, T.rockfloor); lay(x, y, 4); });
-  put(WISE_CAVE.doorX, WISE_CAVE.doorY, T.rockfloor);
+  // THE CAVE MOUTH IS A DOOR, held shut by the Warden's three plates. It was
+  // bare rockfloor: the only thing stopping you walking in and standing next to
+  // the old man was the server refusing to let him talk.
+  put(WISE_CAVE.doorX, WISE_CAVE.doorY, T.icegate);
   lay(WISE_CAVE.doorX, WISE_CAVE.doorY, 4);
   for (const p of WARDEN.plates) { put(p.x, p.y, T.plate); lay(p.x, p.y, 4); }
   for (const b of WARDEN.boulders) { put(b.x, b.y, T.snow); lay(b.x, b.y, 4); }
@@ -301,8 +304,15 @@ export function buildReaches(seed) {
     dressing(45, 17, 62, 23, 17, 0.12, [T.crag, T.crate]);
     // The Summit: wind-carved rock, and a brazier by the cave mouth.
     dressing(1, 1, 44, 7, 19, 0.09, [T.crag]);
-    put(WISE_CAVE.doorX - 1, WISE_CAVE.doorY + 1, T.brazier);
-    put(WISE_CAVE.doorX + 1, WISE_CAVE.doorY + 1, T.brazier);
+    // FLANKING THE DOOR, ON ITS OWN ROW — never on row 5.
+    //
+    // These were at doorY + 1, which IS row 5: the Warden's row. One of them
+    // stood on boulder `summit_c`'s starting tile and the other sat in its push
+    // lane between the plates, so the stone could not be moved and could never
+    // have reached 58,5. The summit puzzle was unsolvable, and the decoration
+    // pass that did it shipped with the tower.
+    put(WISE_CAVE.doorX - 1, WISE_CAVE.doorY, T.brazier);
+    put(WISE_CAVE.doorX + 1, WISE_CAVE.doorY, T.brazier);
   }
 
   // ---- 10. THE TERRACE WALLS.

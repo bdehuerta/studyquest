@@ -21,12 +21,14 @@
 import {
   TILE_TYPES, SOLID_TILES, WORLD_W, WORLD_H,
   AREAS, AREA_PUZZLES, TOWER_FLOORS, ELDERWATCH, ELDERWATCH_WATCH,
-  bouldersFor, platesFor, questSitesFor,
+  bouldersFor, platesFor, questSitesFor, GEAR_SITES, CROSSINGS, WARDEN,
 } from '../../shared/constants.js';
 import { buildElderwatch, buildTowerFloor } from '../../web/world/elderwatch.js';
+import { buildReaches } from '../../web/world/reaches.js';
 
 const SOLID = new Set(SOLID_TILES);
 const T = TILE_TYPES;
+const reaches = buildReaches(1);
 
 const args = process.argv.slice(2);
 const QUIET = args.includes('--quiet');
@@ -142,6 +144,27 @@ checkRoom(bailey, 'Elderwatch bailey', {
 expectTile(bailey, 'Elderwatch: the culvert',
   ELDERWATCH.culvert.x + 1, ELDERWATCH.culvert.y, { oneOf: [T.crackedcrag] });
 
+// ── the Reaches ──────────────────────────────────────────────────────────────
+// The mountain has boulders, plates, gates and the Warden's room, and the
+// decoration pass that scattered cairns, crates and braziers over it ran AFTER
+// they were placed. Same question, same answer.
+checkRoom(reaches, 'the Reaches', {
+  boulders: bouldersFor(AREAS.peaks),
+  plates: platesFor(AREAS.peaks),
+  gates: (AREA_PUZZLES[AREAS.peaks] || {}).gates,
+  door: (AREA_PUZZLES[AREAS.peaks] || {}).door,
+}, {
+  quests: questSitesFor(AREAS.peaks, 0),
+  // THE WARDEN WALKS A LANE TOO, and it was the one patrol in the game nothing
+  // checked. A beat is a pure function of the clock with no collision in it —
+  // a watchman does not test the tile he is stepping onto — so a lane laid
+  // across a wall is a guard walking through it, every time, forever.
+  patrols: [{ ...WARDEN, id: 'the Rime Warden' }],
+});
+for (const g of GEAR_SITES) {
+  expectTile(reaches, `the Reaches: the ${g.gear} lies`, g.x, g.y);
+}
+
 // ── each floor of the Keep ───────────────────────────────────────────────────
 for (const f of TOWER_FLOORS) {
   const map = buildTowerFloor(f.n);
@@ -205,6 +228,86 @@ for (const f of TOWER_FLOORS) {
         `Keep floor ${f.n}: the ${q.item} at ${q.x},${q.y} cannot be reached even WITH `
         + `the ${f.lock.item} — the lock opens onto nothing`);
     }
+  }
+}
+
+/* ====================================================== the mountain, in order
+ *
+ * GEAR MUST NOT BE BEHIND ITSELF. Every terrace climb in the Reaches needs the
+ * Climbing Hooks, so the Hooks have to lie somewhere you can walk to with
+ * nothing — and each later piece has to be reachable with only the pieces found
+ * before it. A gating change that strands the first item makes the region
+ * unfinishable, and nothing else in the harness would notice: the map still
+ * builds, no promise rejects, and the suites walk the mountain with a fixture
+ * that starts holding all three.
+ *
+ * This walks it cold, in the order the design intends.
+ */
+const CLIMB = new Set([T.ladder, T.stair]);
+
+function walkReaches(gear) {
+  const layerAt = (x, y) => reaches.layers[y * WORLD_W + x];
+  const tileAt = (x, y) => reaches.tiles[y * WORLD_W + x];
+  const start = CROSSINGS.find((c) => c.from === AREAS.home && c.to === AREAS.peaks).landing;
+  const seen = new Set([`${start.x},${start.y}`]);
+  const queue = [[start.x, start.y]];
+  while (queue.length) {
+    const [x, y] = queue.shift();
+    for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+      const nx = x + dx;
+      const ny = y + dy;
+      if (nx < 0 || ny < 0 || nx >= WORLD_W || ny >= WORLD_H) continue;
+      const t = tileAt(nx, ny);
+      // Cracked crag is a wall until the Hammer. An ICE GATE is not a gear gate
+      // at all — it is a plate puzzle, opened by shoving boulders, so for the
+      // question this walk asks ("is a piece of gear behind itself?") it counts
+      // as passable. The rest of solid is solid.
+      if (t === T.crackedcrag) { if (!gear.has('hammer')) continue; }
+      else if (t === T.icegate) { /* a puzzle, not a lock on gear */ }
+      else if (SOLID.has(t)) continue;
+      const from = layerAt(x, y);
+      const to = layerAt(nx, ny);
+      if (from !== to) {
+        // Hopping one terrace SOUTH off a ledge is free; everything else needs
+        // a climb tile, and every climb tile now needs the Hooks.
+        const hop = ny === y + 1 && to === from - 1;
+        if (!hop) {
+          if (Math.abs(from - to) > 1) continue;
+          if (!CLIMB.has(t) && !CLIMB.has(tileAt(x, y))) continue;
+          if (!gear.has('hooks')) continue;
+        }
+      }
+      const key = `${nx},${ny}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      queue.push([nx, ny]);
+    }
+  }
+  return seen;
+}
+
+{
+  const held = new Set();
+  // GEAR_SITES is written in the order the mountain intends them to be found.
+  for (const site of GEAR_SITES) {
+    checked += 1;
+    const reach = walkReaches(held);
+    if (!reach.has(`${site.x},${site.y}`)) {
+      failures.push(
+        `the Reaches: the ${site.gear} at ${site.x},${site.y} (layer ${site.layer}) cannot be `
+        + `reached carrying ${held.size ? [...held].join(' + ') : 'nothing'} — it is behind itself`);
+      break;
+    }
+    held.add(site.gear);
+  }
+  // ...and with all three, the crossing on to Elderwatch must be walkable.
+  checked += 1;
+  const east = CROSSINGS.find((c) => c.from === AREAS.peaks && c.to === AREAS.elderwatch);
+  const full = walkReaches(new Set(GEAR_SITES.map((g) => g.gear)));
+  if (!full.has(`${east.x},${east.y0 + 1}`)) {
+    failures.push(
+      `the Reaches: the road east at ${east.x},${east.y0 + 1} cannot be reached even with `
+      + 'every piece of gear — the mountain is a dead end');
   }
 }
 

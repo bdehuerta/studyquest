@@ -21,6 +21,7 @@ import {
   REACHES_GEAR, GEAR_SITES,
   EAST_ROAD, AREA_PUZZLES, bouldersFor, platesFor,
   ELDERWATCH, ELDERWATCH_WATCH, crossingAt, questSitesFor, DOOR_KEYS, QUEST_ITEMS,
+  CHEESECAKE_HERMIT,
   TOWER, TOWER_FLOORS,
   WARDEN, WISE_CAVE,
   HUT,
@@ -1522,10 +1523,19 @@ export function createGame(canvas) {
     const climbTo = isClimbTile(tx, ty);
     const climbFrom = isClimbTile(fx, fy);
     if (!climbTo && !climbFrom) return true;
-    // A LADDER NEEDS THE HOOKS; a stair needs nothing but legs. That is the
-    // difference between the two, and the reason the region has both.
-    const ladder = t === TILE_TYPES.ladder || tileAtSafe(fx, fy) === TILE_TYPES.ladder;
-    if (ladder && !hasGear('hooks')) return true;
+    // EVERY CLIMB NEEDS THE HOOKS — stairs as well as ladders.
+    //
+    // It used to be ladders only, on the theory that a stair needs nothing but
+    // legs. Bruno, 2026-09-06: "I should not be able to climb stairs without
+    // the climbing hooks." He is right about what it costs: with stairs free,
+    // the mountain's first terraces could be walked without finding anything,
+    // so the Hooks were the first piece of gear you could skip. Now the gear IS
+    // the gate, and the whole mountain is behind it.
+    //
+    // The Hooks themselves lie on LAYER 0 (GEAR_SITES), so nothing you need to
+    // reach them is behind them. `tools/lib/geometry.mjs` proves that rather
+    // than trusting it.
+    if (!hasGear('hooks')) return true;
     return false;
   }
 
@@ -2173,6 +2183,17 @@ export function createGame(canvas) {
     return Math.max(dx, dy) <= 2;
   }
 
+  /**
+   * The Cheesecake Hermit, at the far left of the Summit. Purely an easter egg:
+   * he gates nothing, so he needs no state at all — just a tile and a radius.
+   */
+  function hermitInReach() {
+    if (worldArea !== AREAS.peaks) return false;
+    const dx = Math.abs(player.tileX() - CHEESECAKE_HERMIT.x);
+    const dy = Math.abs(player.tileY() - CHEESECAKE_HERMIT.y);
+    return Math.max(dx, dy) <= 2;
+  }
+
   /** The hut's state, from the save. */
   /**
    * IS THE SCHOLAR ON THE HOME BLOCK?
@@ -2481,16 +2502,63 @@ export function createGame(canvas) {
     return pace(WARDEN);
   }
 
+  /**
+   * A PATROL STOPS AT WHAT IS IN HIS WAY.
+   *
+   * `pace` is a pure function of the clock with no collision in it, which is
+   * right — a beat should not drift out of step because somebody stood on it.
+   * But it meant a watchman walked THROUGH the walls his lane happened to touch.
+   *
+   * So the beat still says where he WANTS to be, and this walks the lane from
+   * his end of it and stops him at the last clear tile before the first wall.
+   * He turns round early instead of clipping through it.
+   */
+  /**
+   * WALLS ONLY — not boulders.
+   *
+   * Blocking on boulders as well looked right and killed the Rime Warden
+   * outright: he paces row 5 and his own three boulders START on row 5, at
+   * x47, x51 and x55, so he was pinned at the west end of his beat behind the
+   * first of them and could never see anybody again. His stones are the puzzle
+   * he is guarding; walking among them is the encounter.
+   *
+   * Bruno's report was about walls — "npcs are going across walls, specially
+   * enemies or guards" — so that is exactly what this stops, for movement and
+   * for line of sight alike.
+   */
+  function blockedForPatrol(tx, ty) {
+    const t = tileAtSafe(tx, ty);
+    if (t === TILE_TYPES.icegate) return !gateOpen(gateAt(tx, ty));
+    return SOLID.has(t);
+  }
+
+  function stopAtBlocker(beat, at) {
+    const vertical = Number.isFinite(beat.colX);
+    const from = vertical ? beat.fromY : beat.fromX;
+    const cur = vertical ? at.y : at.x;
+    const step = Math.sign(cur - from) || 1;
+    let last = from;
+    for (let v = from; v !== cur + step; v += step) {
+      const x = vertical ? beat.colX : v;
+      const y = vertical ? v : beat.rowY;
+      if (blockedForPatrol(x, y)) break;
+      last = v;
+    }
+    return vertical ? { ...at, y: last } : { ...at, x: last };
+  }
+
   /** Everyone walking a beat on this map. */
   function patrolList() {
     if (worldArea === AREAS.peaks) {
       const w = wardenState();
-      return w ? [w] : [];
+      return w ? [stopAtBlocker(WARDEN, w)] : [];
     }
     if (worldArea === AREAS.elderwatch) {
       const f = floorDef();
       const beats = f ? (f.patrols || []) : ELDERWATCH_WATCH;
-      return beats.map((b) => pace(b)).filter(Boolean);
+      return beats
+        .map((b) => { const at = pace(b); return at ? stopAtBlocker(b, at) : null; })
+        .filter(Boolean);
     }
     return [];
   }
@@ -2503,15 +2571,19 @@ export function createGame(canvas) {
    */
   function patrolSees() {
     for (const w of patrolList()) {
-      let ahead;
-      if (w.dy) {
-        if (player.tileX() !== w.x) continue;
-        ahead = (player.tileY() - w.y) * w.dy;
-      } else {
-        if (player.tileY() !== w.y) continue;
-        ahead = (player.tileX() - w.x) * w.dx;
+      const dx = w.dy ? 0 : w.dx;
+      const dy = w.dy ? w.dy : 0;
+      if (dy) { if (player.tileX() !== w.x) continue; } else if (player.tileY() !== w.y) continue;
+      const ahead = dy ? (player.tileY() - w.y) * dy : (player.tileX() - w.x) * dx;
+      if (ahead <= 0 || ahead > w.sight) continue;
+      // AND HE HAS TO BE ABLE TO SEE IT. The sight test used to be pure
+      // arithmetic down the axis, so a watchman spotted you through the keep's
+      // wall, through a barrel and through a shut gate. Walk the line.
+      let clear = true;
+      for (let i = 1; i < ahead; i += 1) {
+        if (blockedForPatrol(w.x + dx * i, w.y + dy * i)) { clear = false; break; }
       }
-      if (ahead > 0 && ahead <= w.sight) return true;
+      if (clear) return true;
     }
     return false;
   }
@@ -2690,6 +2762,7 @@ export function createGame(canvas) {
       // adjacent to, so the ordinary building check below would never find him.
       // After the dialogue check, so E still pages through what he is saying.
       if (heraldInReach()) { fireInteract('__herald'); return; }
+      if (hermitInReach()) { fireInteract('__cheesecake'); return; }
       // A panel is already on screen: E closes it and does NOTHING else.
       // Bruno: "if I click E again while its open it should also close." Doing
       // it before the gather branch matters — otherwise the keypress meant to
@@ -3536,7 +3609,25 @@ export function createGame(canvas) {
     const tx0 = Math.max(0, Math.floor(camX / TILE));
     const ty0 = Math.max(0, Math.floor(camY / TILE));
     const tx1 = Math.min(WORLD_W - 1, Math.floor((camX + view.w) / TILE));
-    const ty1 = Math.min(WORLD_H - 1, Math.floor((camY + view.h) / TILE));
+    /**
+     * DRAW PAST THE BOTTOM OF THE VIEW, by as many rows as the tallest terrace
+     * is lifted.
+     *
+     * Every tile on the mountain is painted `layer * LAYER_LIFT` further UP the
+     * screen than its own row, so a row BELOW the viewport can land inside it.
+     * This bound only counted rows whose unlifted position was on screen, so
+     * those rows were never drawn and the bottom of the screen was left as bare
+     * canvas — Bruno: "when I move up on the map in the reaches, the lower area
+     * of the screen goes black." The higher you climbed the taller the black
+     * band got, because more of what should have filled it was lifted.
+     *
+     * `topInset()` already makes the same allowance at the top of the view, for
+     * the same reason and in the other direction.
+     */
+    const liftRows = world.layers
+      ? Math.ceil((LAYER_LIFT * (LAYER_COUNT - 1)) / TILE)
+      : 0;
+    const ty1 = Math.min(WORLD_H - 1, Math.floor((camY + view.h) / TILE) + liftRows);
     const anyShake = shakes.length > 0;
     const hasLayers = !!world.layers;
     const anyHarvest = harvested.size > 0;
@@ -3714,6 +3805,11 @@ export function createGame(canvas) {
           sortY: (WISE_MAN.y + 1) * TILE - liftAt(WISE_MAN.x, WISE_MAN.y),
           kind: 'o', ref: WISE_MAN,
         });
+        drawables.push({
+          sortY: (CHEESECAKE_HERMIT.y + 1) * TILE
+            - liftAt(CHEESECAKE_HERMIT.x, CHEESECAKE_HERMIT.y),
+          kind: 'h', ref: CHEESECAKE_HERMIT,
+        });
       }
     }
     drawables.sort((a, b) => a.sortY - b.sortY);
@@ -3765,6 +3861,13 @@ export function createGame(canvas) {
         const frames = worldArea === AREAS.peaks ? WARDEN_FRAMES : WATCH_FRAMES;
         drawSprite(ctx, frames[Math.floor(clockMs / 320) % frames.length], q.px, q.py, S);
       } else if (d.kind === 'o') {
+        const q = mountainAt(d.ref.x, d.ref.y, -2);
+        drawSprite(ctx, WISEMAN_SPRITE, q.px, q.py, S);
+      } else if (d.kind === 'h') {
+        // The hermit, warming his hands. Borrows the Wise Man's art — two old
+        // men in very large coats at either end of the same shelf is a joke
+        // rather than an oversight — with a small fire of his own beside him.
+        mountainShadow(d.ref.x, d.ref.y, 9);
         const q = mountainAt(d.ref.x, d.ref.y, -2);
         drawSprite(ctx, WISEMAN_SPRITE, q.px, q.py, S);
       } else if (d.kind === 'p') {
@@ -3910,11 +4013,19 @@ export function createGame(canvas) {
     }
     if (!build.isActive() && atCrossing()) {
       const c = crossingHere();
-      const label = c && c.edge === 'east' ? 'E  take the road east' : 'E  go back west';
+      // A ROAD YOU CANNOT TAKE HAS TO SAY SO. The prompt was always "E take the
+      // road east", including at a crossing the server was about to refuse — so
+      // a shut road read as a broken one. Same rule as the ladder you have no
+      // hooks for: it must say it is a ladder.
+      const shut = c && ((c.needs === 'herald' && !(state && state.herald && state.herald.spoken))
+        || (c.needs === 'wiseman' && !(state && state.wiseMan && state.wiseMan.spoken)));
+      const label = shut
+        ? 'the road is here, but you have no reason to walk it yet'
+        : (c && c.edge === 'east' ? 'E  take the road east' : 'E  go back west');
       const w = textWidth(label, ts);
       const cx = clampToCanvas(Math.round((player.centerX() - camX) * S - w / 2), w);
       const cy = Math.round((player.py - camY) * S) - 16 * S;
-      drawTextOutlined(ctx, label, cx, cy, ts, PALETTE.accent, '#0d0f16');
+      drawTextOutlined(ctx, label, cx, cy, ts, shut ? PALETTE.textDim : PALETTE.accent, '#0d0f16');
       lastPrompts.push(label);
     }
     // --- what a quest item on the ground offers, and what a locked door wants.
@@ -4011,6 +4122,19 @@ export function createGame(canvas) {
       );
       const by = Math.round((bp.py - camY) * S) - 12 * S;
       drawTextOutlined(ctx, label, bx, by, ts, PALETTE.accent, '#0d0f16');
+      lastPrompts.push(label);
+    }
+
+    if (hermitInReach()) {
+      const label = 'E  speak to the man with the fire';
+      const w = textWidth(label, ts);
+      const kx = clampToCanvas(
+        Math.round((CHEESECAKE_HERMIT.x * TILE + TILE / 2 - camX) * S - w / 2), w
+      );
+      const ky = Math.round(
+        (CHEESECAKE_HERMIT.y * TILE - camY - liftAt(CHEESECAKE_HERMIT.x, CHEESECAKE_HERMIT.y)) * S
+      ) - 14 * S;
+      drawTextOutlined(ctx, label, kx, ky, ts, PALETTE.accent, '#0d0f16');
       lastPrompts.push(label);
     }
 

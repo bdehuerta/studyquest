@@ -144,15 +144,19 @@ export default {
       equals: true,
     },
     {
-      // The stair out of the labyrinth needs nothing but legs, so the Frozen
-      // Tarn is open from the start and the Crampons on their island can be
-      // reached by sliding — that IS the tarn's puzzle. What is shut is
-      // everything above it: the ladder off the tarn needs the Hooks, and
-      // stopping beside that ladder needs the Crampons.
-      type: 'assert', label: 'and the tarn is open, but nothing above it',
+      // NOTHING ABOVE THE FOOT, INCLUDING THE TARN.
+      //
+      // The stair out of the labyrinth used to need nothing but legs, so the
+      // Frozen Tarn was open from the start. Bruno, 2026-09-06: "I should not
+      // be able to climb stairs without the climbing hooks." Every terrace
+      // climb wants them now, ladder or stair, so the Hooks are the one thing
+      // on this mountain you can reach bare-handed and the whole of the rest of
+      // it is behind them. `tools/lib/geometry.mjs` walks the gear in order and
+      // proves no piece is ever behind itself.
+      type: 'assert', label: 'and nothing above the Foot is, not even the tarn',
       expr: `${fill(ARRIVE[0], ARRIVE[1], true)}`.replace("return [...seen].join(' ');",
         `return JSON.stringify([seen.has('${CRAMPONS}'), seen.has('${HAMMER}'), seen.has('${CAVE}')]);`),
-      equals: '[true,false,false]',
+      equals: '[false,false,false]',
     },
     { type: 'note', text: 'WITH THE HOOKS: the ladders work — but the ice still throws you.' },
     {
@@ -170,6 +174,15 @@ export default {
     {
       type: 'waitFor', timeoutMs: 8000, label: 'they are yours',
       expr: "if (window.__sqGear === 'pending') return false; if (!window.__sqGear) throw new Error('onTakeGear returned nothing'); if (!window.__sqGear.ok) throw new Error(window.__sqGear.error); return true;",
+    },
+    {
+      // AND NOW THE TARN IS. The stair off the Foot is what the Hooks buy
+      // first — the assertion the old rule made at the top of this suite, moved
+      // to the moment it is actually true.
+      type: 'assert', label: 'and now the tarn opens',
+      expr: `${fill(ARRIVE[0], ARRIVE[1], true)}`.replace("return [...seen].join(' ');",
+        `return seen.has('${CRAMPONS}');`),
+      equals: true,
     },
     {
       // THE TARN IS ITS OWN LOCK. A ladder you cannot stand still next to is a

@@ -543,11 +543,27 @@ export default {
       equals: true,
     },
 
-    // --------------------------------------------- 5. the key is IN THE BAG
+    // ------------------------------------- 5. the key is IN THE BAG, on RELICS
     { type: 'key', key: 'Tab', label: 'open the Bag' },
     { type: 'wait', ms: 800 },
     {
-      type: 'assert', label: 'the Bag shows the Blue Key under QUEST ITEMS',
+      // ON THE RELICS TAB, not the bag list. Quest items and the Reaches gear
+      // moved there — Bruno, 2026-09-06: the things you find once and keep
+      // forever do not belong filed beside stacks of ironwood.
+      type: 'eval', label: 'open the RELICS tab',
+      expr: `
+        const body = document.querySelector('.sq-inv-body');
+        if (!body) throw new Error('the Bag is not open');
+        const tabs = [...body.parentElement.querySelectorAll('.sq-theme-tab')];
+        const t = tabs.find((b) => /relics/i.test(b.textContent || ''));
+        if (!t) throw new Error('no RELICS tab: ' + tabs.map((b) => b.textContent).join('|'));
+        t.click();
+        return 'clicked';
+      `,
+    },
+    { type: 'wait', ms: 500 },
+    {
+      type: 'assert', label: 'RELICS shows the Blue Key under QUEST ITEMS',
       expr: "const b = document.querySelector('.sq-inv-body'); return !!b && /QUEST ITEMS/.test(b.textContent) && /Blue Key/.test(b.textContent);",
       equals: true,
     },

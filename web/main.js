@@ -8,7 +8,9 @@ import { createCraft } from './ui/craft.js';
 import { createDialogue } from './ui/dialogue.js';
 import { createMusic } from './ui/music.js';
 import { createGacha } from './ui/gacha.js';
-import { BUILDING_ROLES, STAMINA_PER_LEVEL, VENDOR_LOCKS } from '../shared/constants.js';
+import {
+  BUILDING_ROLES, STAMINA_PER_LEVEL, VENDOR_LOCKS, CHEESECAKE_DIALOGUE,
+} from '../shared/constants.js';
 import { createLaunch, hydrateSettings } from './ui/launch.js';
 import { createMenuBackground } from './menubg.js';
 import { createPause } from './pause.js';
@@ -566,6 +568,12 @@ game.onInteract = async (buildingId) => {
   // out of it. One key does both, because from the player's side it is one door.
   // The far map, and the road to it.
   if (buildingId === '__wiseman') { await commitPosition(); speakTo('wiseman', null); return; }
+  // The Cheesecake Hermit. No server round trip at all: he changes nothing, so
+  // asking the server for permission to hear about pudding would be silly.
+  if (buildingId === '__cheesecake') {
+    dialogue.show(CHEESECAKE_DIALOGUE.lines.slice(), { name: CHEESECAKE_DIALOGUE.name });
+    return;
+  }
   if (buildingId === '__travel') {
     await commitPosition();
     const r = await api.travel();

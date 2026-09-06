@@ -1118,9 +1118,13 @@ export const WARDEN = Object.freeze({
   doorX: 48,
   doorY: 7,
   plates: Object.freeze([
-    Object.freeze({ id: 'summit_a', x: 50, y: 5 }),
-    Object.freeze({ id: 'summit_b', x: 54, y: 5 }),
-    Object.freeze({ id: 'summit_c', x: 58, y: 5 }),
+    // THE THREE OPEN THE CAVE. They name a gate now, like every other plate in
+    // the game, so the door in the summit rock is held by the same machinery
+    // that holds the terrace gate — rather than the Warden being a thing you
+    // beat and the cave being a hole you could always have walked into.
+    Object.freeze({ id: 'summit_a', x: 50, y: 5, gate: 'summit' }),
+    Object.freeze({ id: 'summit_b', x: 54, y: 5, gate: 'summit' }),
+    Object.freeze({ id: 'summit_c', x: 58, y: 5, gate: 'summit' }),
   ]),
   boulders: Object.freeze([
     Object.freeze({ id: 'summit_a', x: 47, y: 5 }),
@@ -1143,6 +1147,18 @@ export const REACHES_PLATES = Object.freeze([
 
 /** The gate across the Boulder Terrace, and the only way to its stair. */
 export const REACHES_GATES = Object.freeze({
+  /**
+   * THE DOOR IN THE SUMMIT ROCK, held by the Warden's three plates.
+   *
+   * Bruno, 2026-09-06: "I should not be able to enter the wise mans' cave
+   * (there should be a door) until I get rid of the guardian by placing the
+   * stones." There was no door: the cave mouth was bare rockfloor, and the only
+   * thing stopping you was the server refusing to let the old man SPEAK. You
+   * could walk in and stand next to him.
+   */
+  // Literal, because WISE_CAVE is declared further down the file. It must stay
+  // equal to WISE_CAVE.doorX/doorY and `tools/lib/geometry.mjs` asserts it does.
+  summit: Object.freeze([Object.freeze({ x: 56, y: 4 })]),
   terrace: Object.freeze([
     Object.freeze({ x: 20, y: 19 }),
     Object.freeze({ x: 20, y: 20 }),
@@ -1695,6 +1711,44 @@ export const WISE_CAVE = Object.freeze({
 
 /** Where the Wise Man sits: the back of the summit cave. */
 export const WISE_MAN = Object.freeze({ x: 58, y: 2 });
+
+/**
+ * THE CHEESECAKE HERMIT — an easter egg at the far left of the Summit.
+ *
+ * Bruno wanted one, and the Summit is the right place for it: you climb four
+ * terraces, beat a guardian and open a door in the rock for the Wise Man, and
+ * at the other end of the same windswept shelf there is a man who will not stop
+ * talking about pudding. The joke only works because getting to him is real
+ * work, so he is on layer 4 with everything else up here.
+ *
+ * He asks nothing, gates nothing and pays nothing. That is the point.
+ */
+export const CHEESECAKE_HERMIT = Object.freeze({ x: 3, y: 4 });
+
+export const CHEESECAKE_DIALOGUE = Object.freeze({
+  name: 'A Man at the End of the Summit',
+  lines: Object.freeze([
+    'There is a man up here. He has a small fire, a very large coat, and an expression of '
+      + 'someone who has been waiting a long time for company and has prepared.',
+    '"BAKED," he says, before you have said anything. "Not that chilled, gelatine business. '
+      + 'Baked. I want to be clear about that from the beginning."',
+    '"A cheesecake is a custard. People forget. It is a custard in a tin with a biscuit '
+      + 'underneath it, and the moment you accept that, everything else follows."',
+    'He counts on his fingers. "Full fat. Room temperature — ROOM temperature, all of it, or '
+      + 'it splits and you will know and you will never be happy again. And you do not beat '
+      + 'it. You are not making a cake. You are persuading it."',
+    '"The bath of water in the oven is not optional and I will not be arguing about it today."',
+    'He looks past you at the drop, and the snow, and the four terraces you climbed to get '
+      + 'here. "Cracks on the top mean you had the oven too hot, or you opened the door, or '
+      + 'you rushed the cooling. Usually you rushed the cooling. Everyone rushes the cooling."',
+    '"Overnight," he says. "In the fridge. Overnight. A cheesecake eaten on the day it was '
+      + 'made is a cheesecake you have wronged."',
+    'He goes quiet for a moment, and something else comes into it. "I did have the tin. I '
+      + 'brought it up. I have not been down since."',
+    'He waves you off toward the cave, cheerfully. "Go on. He is expecting you. Ask him about '
+      + 'the water bath — he says it makes no difference. He is wrong, and he knows it."',
+  ]),
+});
 
 /**
  * The Wise Man of the mountain. The end of the Herald's errand — and, for now,

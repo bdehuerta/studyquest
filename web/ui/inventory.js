@@ -1179,6 +1179,11 @@ export function createInventory(root, api) {
 
   function renderRelics() {
     const list = relicList().filter((r) => matches(r.name || r.id));
+    // Only claim the tab is empty if it really is. This used to say "No relics"
+    // under a full list of Reaches gear, because it was the only thing on the
+    // tab and could assume it spoke for the whole page.
+    const aloneOnTab = !body.childNodes.length;
+    if (!list.length && !aloneOnTab) return;
     body.appendChild(rule('RELICS', 'relics'));
     if (!list.length) {
       body.appendChild(el('div', 'sq-theme-empty',
@@ -1275,15 +1280,25 @@ export function createInventory(root, api) {
       // plant, what you spend, what you place. Relics and boxes are deliberately
       // NOT in it — see the note on TABS.
       if (tab === 'items') {
-        renderQuestItems();
-    renderReachesGear();
         renderTools();
         renderSeeds();
         renderGadgets();
         renderBlocks();
         renderMaterials();
       } else if (tab === 'gear') { renderDoll(); renderCharms(); renderGear(); }
-      else if (tab === 'relics') renderRelics();
+      else if (tab === 'relics') {
+        // THE RELICS TAB IS THE HOME FOR EVERYTHING PERMANENT.
+        //
+        // Bruno, 2026-09-06: "these upgrades found in the reaches should appear
+        // in the relics section of the inventory." They were rendered on the
+        // BAG tab only, filed beside stacks of ironwood — which is the wrong
+        // shelf for three things you find once and keep forever. The Codex and
+        // the Ring belong here for the same reason, so quest items move too:
+        // one home per concept, rather than two.
+        renderReachesGear();
+        renderQuestItems();
+        renderRelics();
+      }
       else if (tab === 'boxes') renderBoxes();
     } catch (err) {
       if (typeof console !== 'undefined') console.error('[sq-inv] render', err);

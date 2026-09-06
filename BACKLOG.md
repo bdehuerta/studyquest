@@ -1456,6 +1456,79 @@ the halo also covers, and it failed — correctly. The test was wrong, not the
 rule.
 
 ---
+## DONE 2026-09-06 (2) — seven things wrong with the mountain
+
+Bruno, playing: stairs climbable without the Hooks; the Reaches upgrades not in
+the Relics tab; the Elderwatch crossing not gated on the Wise Man; a black band
+at the bottom of the screen; a stone stuck in a fire lamp; no door on the Wise
+Man's cave; and "npcs are going across walls, specially enemies or guards".
+
+### THE SUMMIT PUZZLE COULD NOT BE SOLVED AT ALL
+
+The two braziers "by the cave mouth" were placed at `doorY + 1` — ROW 5, the
+Warden's row. One stood exactly on boulder `summit_c`'s starting tile and the
+other sat in its push lane between the plates, so the stone could not be moved
+and could never have reached its plate at 58,5. Found by pointing
+`geometry.mjs` at the Reaches, which nothing had done: it had only ever checked
+Elderwatch.
+
+### THE CAVE HAD NO DOOR
+
+The mouth was bare rockfloor. The only thing stopping you walking in and
+standing next to the Wise Man was the SERVER refusing to let him speak — the
+guardian was a conversation lock wearing a boss's clothes. The Warden's three
+plates name a gate now (`summit`) and the mouth is a gate tile held by them,
+which is the machinery the terrace gate already used.
+
+### EVERY CLIMB NEEDS THE HOOKS
+
+Ladders needed them; stairs were free, deliberately — "a stair needs nothing but
+legs" was written in the code and in `23-mountain`'s comments. That made the
+Frozen Tarn reachable bare-handed and the Hooks the one piece of gear you could
+skip. Now the Hooks are the only thing on the mountain you can reach with
+nothing. `geometry.mjs` walks the gear IN ORDER and proves no piece is ever
+behind itself, and that the road east is reachable with all three.
+
+### GUARDS WALKED THROUGH WALLS, AND SAW THROUGH THEM
+
+A beat is a pure function of the clock with no collision in it, so a patrol
+walked through any wall its lane touched; and `patrolSees` was pure arithmetic
+down the axis, so a watchman spotted you through the keep's wall and through a
+shut gate. Both walk the line now.
+
+FIRST ATTEMPT KILLED THE RIME WARDEN. Blocking on boulders as well as walls
+looked more correct and pinned him at the west end of his beat forever — he
+paces row 5 and his own three boulders START on row 5. `24-warden` caught it by
+timing out waiting to be seen. His stones are the puzzle he guards; walls only.
+
+### THE BOTTOM OF THE SCREEN WENT BLACK
+
+Every tile on the mountain is drawn `layer * LAYER_LIFT` further UP than its own
+row, but the tile loop's lower bound only counted rows whose UNLIFTED position
+was on screen. The rows that should have filled the bottom were never drawn, and
+the band grew as you climbed. Three extra rows now — the same allowance
+`topInset()` already made at the top, in the other direction.
+
+### THE RELICS TAB IS THE HOME FOR PERMANENT THINGS
+
+`renderReachesGear()` existed and was only ever called on the BAG tab, filed
+beside stacks of ironwood. It and the quest items moved to RELICS — one home per
+concept rather than two — and `renderRelics` no longer prints "No relics" over
+a full page, which it did because it used to be the only thing on the tab.
+
+### THE CROSSING WAS ALREADY GATED
+
+Tested directly: never-found and found-but-not-spoken are both refused, only
+spoken goes through. What was wrong was the PROMPT — a shut road still said
+"E take the road east", so it read as broken rather than locked. It says it is
+shut, in dim text, the same way the ladder-without-hooks prompt does.
+
+### AND A CHEESECAKE HERMIT
+
+At the far left of the Summit. Gates nothing, pays nothing, asks nothing. The
+joke only works because getting to him is four terraces of real work.
+
+---
 ## DONE 2026-09-06 — a stale bundle, a lock that locked nothing, and Ranon's Ring
 
 Bruno, playing it: *"the ground floor is all bugged. the codex is not there. the

@@ -261,3 +261,47 @@ shadow cast onto the ground below. And a ladder or a stair carries its OWN art
 down the face — the flight is drawn continuously from the ground to the terrace
 above, which is precisely what was missing when a rung floated at the top of a
 cliff with no visible way to it.
+
+## 2026-09-06 — WHAT WAS ACTUALLY WRONG WITH THIS MOUNTAIN
+
+Six things, found in one sitting, four of them shipped by the decoration pass
+that came with the Keep.
+
+**THE SUMMIT PUZZLE COULD NOT BE SOLVED.** The two braziers "by the cave mouth"
+were placed at `doorY + 1` — which is ROW 5, the Warden's row. One stood exactly
+on boulder `summit_c`'s starting tile and the other sat in its push lane between
+the plates, so the stone could not be moved at all and could never have reached
+58,5. Bruno: *"there is a bugged stone at the top of the reaches map, it is stuck
+inside a fire lamp."* They flank the door on row 4 now.
+
+**THE CAVE HAD NO DOOR.** The mouth was bare rockfloor. The only thing stopping
+you walking in and standing beside the Wise Man was the SERVER refusing to let
+him speak — so the guardian was a conversation lock wearing a boss's clothes.
+The Warden's three plates now name a gate (`summit`), and the mouth is a gate
+tile held by them, which is the same machinery the terrace gate already used.
+
+**EVERY CLIMB NEEDS THE HOOKS.** It was ladders only; stairs were free, on the
+theory that a stair needs nothing but legs. That made the Frozen Tarn reachable
+bare-handed and the Hooks the first thing you could skip. Now the Hooks are the
+one thing on the mountain you can reach with nothing and everything above the
+Foot is behind them — which `tools/lib/geometry.mjs` proves by walking the gear
+in order and checking no piece is ever behind itself.
+
+**GUARDS WALKED THROUGH WALLS AND SAW THROUGH THEM.** A beat is a pure function
+of the clock with no collision in it, so a patrol strolled through anything on
+its lane — in the Elderwatch bailey that lane is row 38, the barrels' road. And
+`patrolSees` was pure arithmetic down the axis: a watchman spotted you through
+the keep's wall, through a barrel and through a shut gate. A patrol stops at the
+last clear tile before a blocker now and turns back early, which also makes a
+barrel something you can block a patrol with; and the sight line is walked.
+
+**THE BOTTOM OF THE SCREEN WENT BLACK.** Every tile up here is drawn
+`layer * LAYER_LIFT` further UP than its own row, but the tile loop only drew
+rows whose UNLIFTED position was on screen — so the rows that should have filled
+the bottom were never drawn at all, and the band grew as you climbed. It draws
+three rows past the bottom now, the same allowance `topInset()` already made at
+the top and for the same reason.
+
+**AND A MAN WHO WILL NOT STOP TALKING ABOUT CHEESECAKE** sits at the far left of
+the Summit. He gates nothing, pays nothing and asks nothing. The joke only works
+because getting to him is four terraces of real work.
