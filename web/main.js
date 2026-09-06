@@ -556,7 +556,9 @@ async function commitPosition() {
     await fetch('/api/player/move', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ x: t.x, y: t.y }),
+      // THE AREA GOES WITH IT. A position means nothing without the map it is
+      // on, and this commit can land after a travel has already changed maps.
+      body: JSON.stringify({ x: t.x, y: t.y, area: game.getArea && game.getArea() }),
     });
   } catch { /* the gate will refuse and say why; nothing to add here */ }
 }
@@ -787,7 +789,7 @@ function flushPosition() {
     if (typeof game.isRunning === 'function' && !game.isRunning()) return;
     const { x, y } = game.getPlayerTile();
     if (!Number.isFinite(x) || !Number.isFinite(y)) return;
-    const body = JSON.stringify({ x, y });
+    const body = JSON.stringify({ x, y, area: game.getArea && game.getArea() });
     if (navigator.sendBeacon) {
       navigator.sendBeacon('/api/player/move', new Blob([body], { type: 'application/json' }));
     } else {

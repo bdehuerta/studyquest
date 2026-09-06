@@ -22,7 +22,7 @@ import {
   REACHES_GEAR, GEAR_SITES,
   EAST_ROAD, AREA_PUZZLES, bouldersFor, platesFor,
   ELDERWATCH, ELDERWATCH_WATCH, crossingAt, crossingRows, questSitesFor, DOOR_KEYS, QUEST_ITEMS,
-  AREA_NAMES,
+  AREA_NAMES, CROSSINGS,
   CHEESECAKE_HERMIT, ELDERWATCH_SWITCHES,
   TOWER, TOWER_FLOORS,
   WARDEN, WISE_CAVE,
@@ -1343,12 +1343,34 @@ export function createGame(canvas) {
         // building was raised on top of you, terrain changed between versions.
         // Never drop the player inside geometry: walk outwards to the nearest
         // free tile and tell the server where we actually put them.
-        const free = nearestFreeTile(px, py);
+        let free = nearestFreeTile(px, py);
+        let why = 'you were stuck — moved to open ground';
+
+        /**
+         * ...AND IF IT HAD TO GO A LONG WAY, THE POSITION IS NOT LOCAL DAMAGE —
+         * IT BELONGS TO ANOTHER MAP.
+         *
+         * Nearest-free is the right answer to "a tree grew over you". It is the
+         * wrong answer to "this tile is the Home Block's east road and you are
+         * in the Farlands", which is what a flush landing across a travel
+         * writes: it drops you in the middle of nowhere, technically free, with
+         * no idea where you are. Put those at the map's own arrival tile —
+         * the one place on any map that is guaranteed to be somewhere sensible.
+         */
+        const far = Math.max(Math.abs(free.x - px), Math.abs(free.y - py)) > 3;
+        if (far) {
+          const arrival = CROSSINGS.find((c) => c.to === worldArea);
+          if (arrival) {
+            const landed = nearestFreeTile(arrival.landing.x, arrival.landing.y);
+            free = landed;
+            why = 'that save had you off the map — set down at the road';
+          }
+        }
         player.setTile(free.x, free.y);
         snapCamera();
         if ((free.x !== px || free.y !== py) && typeof api.onMoveCommit === 'function') {
           try { api.onMoveCommit(free.x, free.y); } catch {}
-          toast('you were stuck — moved to open ground', '#ffd93d');
+          toast(why, '#ffd93d');
         }
       }
       firstStateApplied = true;
@@ -3259,14 +3281,14 @@ export function createGame(canvas) {
     /**
      * SMOOTH CAMERA FOLLOW (exponential lerp, framerate independent).
      *
-     * 0.001 left the camera a long way behind: at 60fps it closes only ~11% of
-     * the gap per frame, so it trails the scholar while she walks and then
-     * drifts to a stop after she does. Combined with the pixel snap below, that
-     * drift is what read as the world sliding underneath her. 1e-7 closes ~80%
-     * a frame — still eased, still framerate-independent, but it sits on her.
+     * 0.001 closes ~11% of the gap per frame at 60fps. That is a soft follow
+     * and it is DELIBERATE: a camera that sits exactly on the player makes the
+     * whole world move under a stationary sprite, which is the other way to
+     * make somebody seasick. Tightening this to 1e-7 was part of the change
+     * Bruno reported as dizzier; it is back where it was.
      */
     const t = camTarget();
-    const k = 1 - Math.pow(1e-7, dtMs / 1000);
+    const k = 1 - Math.pow(0.001, dtMs / 1000);
     cam.x += (t.x - cam.x) * k;
     cam.y += (t.y - cam.y) * k;
     cam.x = clampCam(cam.x, view.w, WORLD_PX_W);
@@ -3715,20 +3737,20 @@ export function createGame(canvas) {
     // and seamless) while leaving the camera free to move in sub-world-pixel
     // steps. Every draw site then rounds ONCE, in screen space, at the end.
     /**
-     * ONE PIXEL GRID FOR EVERYTHING.
+     * THE CAMERA SITS ON THE DEVICE-PIXEL GRID, and this is the finest grid
+     * available — do not "improve" it to whole world pixels.
      *
-     * The camera was snapped to whole DEVICE pixels while the scholar is drawn
-     * at `Math.round((p.px - camX) * S)` — rounded again, separately. Two
-     * independent roundings on the same frame means her offset from the centre
-     * of the screen wobbles by a pixel as the camera crosses each grid line,
-     * every few frames, forever. That is the shimmer that reads as small stops.
-     *
-     * Snapping the camera to whole WORLD pixels instead puts the camera and
-     * everything drawn against it on the SAME grid, so the second rounding is
-     * exact and she stops vibrating relative to the ground she is walking on.
+     * `Math.round(cam.x * S) / S` quantises the camera to 1/S of a world pixel,
+     * i.e. exactly one screen pixel, and every tile then lands on an integer
+     * device pixel because `(tx * TILE - camX) * S` is a whole number. Rounding
+     * to whole WORLD pixels instead — which I tried, reasoning that one grid
+     * for everything must be smoother — makes the camera jump S screen pixels
+     * at a time. At S=3 that is three times coarser than it was, and Bruno felt
+     * it immediately: "the game is much much laggier ... you made it more
+     * dizzier." He was right. Coarser is not smoother.
      */
-    const camX = Math.round(cam.x);
-    const camY = Math.round(cam.y);
+    const camX = Math.round(cam.x * S) / S;
+    const camY = Math.round(cam.y * S) / S;
 
     ctx.imageSmoothingEnabled = false;
     ctx.fillStyle = PALETTE.bg;
@@ -3753,7 +3775,11 @@ export function createGame(canvas) {
      * `topInset()` already makes the same allowance at the top of the view, for
      * the same reason and in the other direction.
      */
-    const liftRows = world.layers
+    // ONLY THE MOUNTAIN HAS TERRACES. Elderwatch and the Farlands carry an
+    // all-zero `layers` array so that nothing downstream needs a special case,
+    // so testing for the array drew three extra rows of tiles every frame on
+    // maps where nothing is ever lifted.
+    const liftRows = (world.layers && worldArea === AREAS.peaks)
       ? Math.ceil((LAYER_LIFT * (LAYER_COUNT - 1)) / TILE)
       : 0;
     const ty1 = Math.min(WORLD_H - 1, Math.floor((camY + view.h) / TILE) + liftRows);

@@ -1600,6 +1600,31 @@ function routePlayerMove(b, state, save) {
   const x = num(b.x);
   const y = num(b.y);
   if (x === null || y === null) return fail('move needs numeric x and y');
+
+  /**
+   * A POSITION BELONGS TO A MAP, and a commit that names a different one is
+   * stale — DISCARD IT.
+   *
+   * This is the bug behind three reports of "I cannot exit the map". The client
+   * flushes the renderer's tile on pagehide; travel is a SERVER decision that
+   * changes `player.area` and the landing in one go. Quit in the moment between
+   * the two and the flush writes the tile you were standing on in the OLD map
+   * against the NEW map's area. Bruno's Slot 2 came back as `area: farlands`
+   * holding 63,10 — which is the HOME BLOCK's east crossing, a tile that is
+   * solid rock in the farlands and nowhere near its road.
+   *
+   * The save then had him somewhere he could not have walked to, on a map with
+   * no landmarks, and every following diagnosis chased the map instead of the
+   * desync. Bruno found it: "it was fixed if I restarted the saves, on older
+   * saves it was broken."
+   *
+   * `area` is optional so an older client still works; when it is sent and does
+   * not match, the write is dropped rather than refused — a stale flush is not
+   * an error, it is just late.
+   */
+  if (typeof b.area === 'string' && b.area && b.area !== areaOf(state)) {
+    return ok({ ignored: 'stale', area: areaOf(state) });
+  }
   state.player.x = clamp(Math.round(x), 0, WORLD_W - 1);
   state.player.y = clamp(Math.round(y), 0, WORLD_H - 1);
   if (ridingBoat) {

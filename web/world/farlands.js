@@ -85,6 +85,27 @@ export function buildFarlands(seed) {
   put(11, y0, T.crag);
   put(11, y1, T.crag);
 
+  // ---- 3b. WAYMARKERS, so the road can be found from anywhere on the map.
+  //
+  //          Three times now Bruno has been unable to leave this map, and only
+  //          the first time was he actually blocked. The other two he was loose
+  //          on a featureless red field where the only exit is a band of path
+  //          at the bottom of it — "walk south" is a thing I can say and the
+  //          map cannot. A placeholder region has no landmarks by definition,
+  //          so it has to be given some.
+  //
+  //          Lines of cairns run down to the road at intervals across the whole
+  //          map. From anywhere you can see one, and every one of them leads
+  //          south to the road: follow any of them and you are out. They are
+  //          scenery, not walls — they are one tile wide with gaps, so nothing
+  //          can be walked round or trapped behind them.
+  for (let x = 6; x < WORLD_W; x += 9) {
+    for (let y = 3; y < y0 - 1; y += 4) put(x, y, T.crag);
+  }
+  for (let y = y1 + 2; y < WORLD_H - 2; y += 4) {
+    for (let x = 6; x < WORLD_W; x += 9) put(x, y, T.crag);
+  }
+
   // ---- 4. seal it, leaving the road east open. Rock, not trees: nothing grows
   //         here.
   for (let x = 0; x < WORLD_W; x += 1) { put(x, 0, T.crag); put(x, WORLD_H - 1, T.crag); }
