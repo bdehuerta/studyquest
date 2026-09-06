@@ -137,3 +137,49 @@ other than timing.
 Carrying the Standard west is still the next region, and the farlands still do
 not exist. What has changed is that leaving is no longer the only thing the top
 floor gives you.
+
+
+## 2026-09-06 — EVERY BARRIER IN THIS TOWER WAS WALKED AROUND
+
+The Hall's locked door was the first one found. It was not the only one. Each of
+the three floors that gates something gated it with LOOSE TILES standing in the
+middle of an open round room:
+
+| Floor | Barrier | What it guarded | What you did |
+|---|---|---|---|
+| 2 Cistern | the barred gate on two plates | the stair up | walked round it |
+| 3 Armoury | the bricked arch | the Brass Key, the stair up | walked round it |
+| 4 Hall | the locked door | the Standard, the chest | walked round it |
+
+So the barrels were decoration, the Stone Hammer was optional, and the Brass Key
+opened nothing. Every floor now carries a `wallX` or `wallY` — one wall across
+the room, drawn BEFORE the arch, the gate and the lock, each of which punches
+its own hole through it. `geometry.mjs` floods each floor from the stair you
+arrive on and requires that what a barrier guards is unreachable while it is
+shut and reachable once it opens; it checks gates and arches, not just doors.
+
+## THE KEY IS TURNED, NOT CARRIED
+
+A door that opens because the key is in your bag is a door nobody ever opens.
+`E` on it now, once, and `state.doors` remembers — a door you have unlocked
+stays unlocked, because re-locking itself behind you would be worse than never
+having been locked.
+
+## THE FRONT GATE OPENS FROM THE INSIDE
+
+The blue gate in the west wall was barred for the whole visit with no way to
+change that, which is a wall with a picture of a gate on it. The north-west
+store — which held nothing at all — now holds the winch, and throwing it raises
+the gate for good. You still cannot touch it from outside: the culvert is the
+way IN, and this is the shortcut you have earned by having used it.
+
+A SWITCH IS NOT A PLATE. A plate is held while something heavy sits on it and
+shuts the instant you step off; a winch latches, and the save keeps it.
+
+## AND THE GARRISON
+
+Six in the bailey, not two, and none of them ends a beat flush against masonry
+— `watch_north` used to run exactly the gap between the two store sheds, so at
+each end he walked into a wall and stood there facing it. Three on the
+Guardroom floor, two in the Cistern, three in the Armoury. The Hall still has
+none: it is a shrine, and the thing in it is the encounter.

@@ -144,6 +144,26 @@ checkRoom(bailey, 'Elderwatch bailey', {
 expectTile(bailey, 'Elderwatch: the culvert',
   ELDERWATCH.culvert.x + 1, ELDERWATCH.culvert.y, { oneOf: [T.crackedcrag] });
 
+function floodFloorMulti(map, from, openTiles) {
+  const open = new Set((openTiles || []).map((t) => `${t.x},${t.y}`));
+  const seen = new Set([`${from.x},${from.y}`]);
+  const queue = [[from.x, from.y]];
+  while (queue.length) {
+    const [x, y] = queue.shift();
+    for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+      const nx = x + dx;
+      const ny = y + dy;
+      if (nx < 0 || ny < 0 || nx >= WORLD_W || ny >= WORLD_H) continue;
+      const key = `${nx},${ny}`;
+      if (SOLID.has(map.tiles[ny * WORLD_W + nx]) && !open.has(key)) continue;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      queue.push([nx, ny]);
+    }
+  }
+  return seen;
+}
+
 // ── the Reaches ──────────────────────────────────────────────────────────────
 // The mountain has boulders, plates, gates and the Warden's room, and the
 // decoration pass that scattered cairns, crates and braziers over it ran AFTER
@@ -163,6 +183,23 @@ checkRoom(reaches, 'the Reaches', {
 });
 for (const g of GEAR_SITES) {
   expectTile(reaches, `the Reaches: the ${g.gear} lies`, g.x, g.y);
+}
+
+// The way in must survive the wood. The moor around Elderwatch is thick with
+// trees now, and trees are solid — the road is carved after them, but a check
+// beats a comment.
+{
+  checked += 1;
+  const land = CROSSINGS.find((c) => c.to === AREAS.elderwatch).landing;
+  const reach = floodFloorMulti(bailey, land, []);
+  // The tile you STAND ON to swing the hammer, not the culvert itself: cracked
+  // masonry is solid until it is broken, so the culvert is never walkable.
+  const stand = { x: ELDERWATCH.culvert.x - 1, y: ELDERWATCH.culvert.y };
+  if (!reach.has(`${stand.x},${stand.y}`)) {
+    failures.push(
+      `Elderwatch: the culvert cannot be reached from the west road landing — nothing can `
+      + `stand at ${stand.x},${stand.y}, so the wood or the wall has closed the way in`);
+  }
 }
 
 // ── each floor of the Keep ───────────────────────────────────────────────────
@@ -211,22 +248,48 @@ function floodFloor(map, from, openTile) {
   return seen;
 }
 
+
+/**
+ * EVERY BARRIER ON A FLOOR, and what is behind it.
+ *
+ * Not just locked doors. A floor's way on may be held by a barred GATE on
+ * plates (the Cistern), a bricked ARCH that wants the Stone Hammer (the
+ * Armoury), or a locked DOOR that wants a key (the Hall) — and all three
+ * shipped as loose tiles standing in the middle of an open round room, walked
+ * around by simply going past them. Each is checked the same way: what it
+ * guards must be UNREACHABLE while it is shut and reachable once it opens.
+ */
 for (const f of TOWER_FLOORS) {
-  if (!f.lock || !f.down) continue;
+  if (!f.down) continue;
   const map = buildTowerFloor(f.n);
-  const shut = floodFloor(map, f.down, null);
-  const open = floodFloor(map, f.down, f.lock);
-  for (const q of questSitesFor(AREAS.elderwatch, f.n)) {
-    checked += 2;
-    if (shut.has(`${q.x},${q.y}`)) {
+  const barriers = [];
+  if (f.lock) barriers.push({ what: `the ${f.lock.item} door`, tiles: [f.lock] });
+  if (f.cracked && f.cracked.length) barriers.push({ what: 'the bricked arch', tiles: f.cracked });
+  for (const [name, tiles] of Object.entries(f.gates || {})) {
+    barriers.push({ what: `the "${name}" gate`, tiles });
+  }
+  if (!barriers.length) continue;
+
+  // What is worth being behind something: the floor's items, and the way UP.
+  const prizes = [
+    ...questSitesFor(AREAS.elderwatch, f.n).map((q) => ({ name: q.item, x: q.x, y: q.y })),
+    ...(f.up ? [{ name: 'the stair up', x: f.up.x, y: f.up.y }] : []),
+  ];
+  const shut = floodFloorMulti(map, f.down, []);
+  const allOpen = floodFloorMulti(map, f.down, barriers.flatMap((b) => b.tiles));
+  const guarded = prizes.filter((p) => !shut.has(`${p.x},${p.y}`));
+
+  checked += prizes.length;
+  if (prizes.length && !guarded.length) {
+    failures.push(
+      `Keep floor ${f.n}: ${barriers.map((b) => b.what).join(' and ')} guards nothing — `
+      + `${prizes.map((p) => p.name).join(', ')} can all be reached without opening it`);
+  }
+  for (const p of guarded) {
+    if (!allOpen.has(`${p.x},${p.y}`)) {
       failures.push(
-        `Keep floor ${f.n}: the ${q.item} at ${q.x},${q.y} can be reached WITHOUT `
-        + `the ${f.lock.item} — the locked door at ${f.lock.x},${f.lock.y} is walked around`);
-    }
-    if (!open.has(`${q.x},${q.y}`)) {
-      failures.push(
-        `Keep floor ${f.n}: the ${q.item} at ${q.x},${q.y} cannot be reached even WITH `
-        + `the ${f.lock.item} — the lock opens onto nothing`);
+        `Keep floor ${f.n}: ${p.name} at ${p.x},${p.y} cannot be reached even with every `
+        + 'barrier open — it opens onto nothing');
     }
   }
 }

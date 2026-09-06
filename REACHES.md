@@ -305,3 +305,33 @@ the top and for the same reason.
 **AND A MAN WHO WILL NOT STOP TALKING ABOUT CHEESECAKE** sits at the far left of
 the Summit. He gates nothing, pays nothing and asks nothing. The joke only works
 because getting to him is four terraces of real work.
+
+## 2026-09-06 (2) — the cave is lit by what you carry
+
+The summit cave used to light ITSELF: a wash lifted 90% of the dark off the
+whole room, with a warmer radial at the old man's hearth on top of it. The
+argument was that arriving at the end of the Herald's errand without a lantern
+and finding a black room with a voice in it is not the scene.
+
+Bruno disagreed — *"remove that preexisting lighting so that the only lighting
+is the one of the lamp around my character"* — so the room wash and the hearth
+are gone and the cave works exactly like the Stonemason's. The cost is real and
+chosen: with no lantern the chamber is gloom and the Wise Man is a voice you
+cannot see. He still speaks, and `CAVE_DARKNESS` is not 1, so it is dim rather
+than pitch black.
+
+The hermit got a cookfire on the tile in front of him — a brazier tile so it is
+solid, with a two-frame pan-and-crepe sprite drawn over it.
+
+## 2026-09-06 (3) — leaving a map puts its rocks back
+
+*"when I leave the map block, like the reaches or elderwatch, etc, the rocks you
+can move should reset to their original positions."*
+
+It used to happen on ARRIVAL and only for Elderwatch's bailey, added as a safety
+net because a barrel shoved against a wall can never be shoved back. It is a
+rule now: `resetMapRocks()` on the way OUT, every map, every room of it — the
+Keep's four floors go back with Elderwatch, and the Warden's three go back with
+the Reaches, since `bouldersFor(peaks)` already joins the terrace puzzle to the
+Warden's room. Only POSITIONS reset. Gear you found and a Warden you broke are
+yours for good.

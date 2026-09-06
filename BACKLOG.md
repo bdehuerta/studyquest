@@ -1456,6 +1456,87 @@ the halo also covers, and it failed — correctly. The test was wrong, not the
 rule.
 
 ---
+## DONE 2026-09-06 (3) — the barriers that gated nothing, and a fourth map
+
+A long list, played out of the app rather than read out of the code.
+
+### EVERY BARRIER IN THE KEEP WAS WALKED AROUND
+
+The Hall's locked door was found first and was not the only one. All three
+gating floors gated with LOOSE TILES in an open round room:
+
+  * floor 2, the barred gate on two plates -> the stair up: walked round.
+  * floor 3, the bricked arch -> the Brass Key and the stair up: walked round.
+  * floor 4, the locked door -> the Standard and the chest: walked round.
+
+So the barrels were decoration, the Stone Hammer was optional and the Brass Key
+opened nothing. Every floor carries a `wallX`/`wallY` now, drawn BEFORE the
+arch, the gate and the lock, each of which punches its own hole. `geometry.mjs`
+floods each floor from the arrival stair and requires that what a barrier guards
+is unreachable while shut — for gates and arches, not only doors.
+
+### THE KEY IS TURNED, NOT CARRIED
+
+`E` on the door, once, recorded in `state.doors`. A door that opens because the
+key is in your bag is a door nobody ever opens. It stays open afterwards.
+
+### THE FRONT GATE OPENS FROM THE INSIDE
+
+The blue gate in the west wall was barred with no way to change that. The
+north-west store — empty since it was built — holds the winch. A SWITCH IS NOT
+A PLATE: a plate is held while something heavy sits on it and shuts the instant
+you step off; a winch latches and the save keeps it.
+
+### SIX IN THE BAILEY, AND NONE FACING A WALL
+
+`watch_north` ran x31-45, exactly the gap between the two store sheds, so at
+each end he walked into masonry and stood there. No beat ends flush against
+anything now. Three on the Guardroom floor, two in the Cistern, three in the
+Armoury; the Hall still has none, because it is a shrine.
+
+### LEAVING A MAP PUTS ITS ROCKS BACK
+
+Was arrival, and only Elderwatch's bailey. Now `resetMapRocks()` on the way OUT,
+every map, every room — the Keep's four floors go with Elderwatch, the Warden's
+three with the Reaches. Positions only: gear and a beaten Warden are yours.
+
+### THE CAVE IS LIT BY WHAT YOU CARRY
+
+The summit cave lit itself with a room wash and a hearth glow. Both gone: one
+pool, and it is the lantern's. The cost is chosen — with no lantern the Wise Man
+is a voice you cannot see.
+
+### NO PLANTING ON A CARVED ROUTE
+
+The Reaches' roads and the labyrinth's corridors are plain SNOW, snow is
+plantable, and a planted tree is SOLID — one sapling in a one-tile corridor
+seals the maze behind you. `routed`, the set the worldgen already kept so
+decoration would not fill the maze in, now goes out with the map and blocks it.
+
+### MOVEMENT
+
+Two causes, both real. The camera closed only ~11% of the gap per frame, so it
+trailed her and drifted to a stop after she did; and it was snapped to whole
+DEVICE pixels while she was rounded separately against it, so her offset from
+centre wobbled a pixel every few frames forever. The follow is tight now and
+both sit on the same WORLD-pixel grid. Separately, `boulderList()` allocated a
+fresh array on every `boulderAt()` — hundreds of throwaway arrays a second, GC
+pressure that shows up exactly as hitching. Both hot lists are cached per frame.
+
+### THE FARLANDS
+
+The fourth map, west of the Home Block past the Woodsman, raw on purpose:
+cooled lava, a wall, and the road in. Terrain untouched as asked — road painted
+on grass that was already there, and the border's seal now takes a LIST of gaps
+so the Home Block can have two ways out. What it buys today is that the
+Standard's objective stops pointing at a place that does not exist.
+
+### AND THE CHEESECAKE HERMIT GOT A COOKFIRE
+
+A brazier tile in front of him so it is solid, with a two-frame pan-and-crepe
+sprite over the top.
+
+---
 ## DONE 2026-09-06 (2) — seven things wrong with the mountain
 
 Bruno, playing: stairs climbable without the Hooks; the Reaches upgrades not in

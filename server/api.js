@@ -83,6 +83,8 @@ import {
   platesFor,
   TOWER,
   TOWER_FLOORS,
+  DOOR_KEYS,
+  ELDERWATCH_SWITCHES,
 } from '../shared/constants.js';
 import { sweepCodex } from '../shared/codex.js';
 
@@ -1309,6 +1311,10 @@ export async function handleApi(pathname, body, state, save) {
       case '/api/reaches/push':
         return routeReachesPush(b, state, persist);
 
+      case '/api/switch/throw':
+        return routeSwitchThrow(b, state, persist);
+      case '/api/door/open':
+        return routeDoorOpen(b, state, persist);
       case '/api/reaches/reset':
         return routeReachesReset(b, state, persist);
 
@@ -3109,7 +3115,8 @@ function areaOf(state) {
   const a = state.player && state.player.area;
   // A whitelist, not a two-way switch: there are three maps now and a save that
   // names one of them must not be quietly sent home.
-  return (a === AREAS.peaks || a === AREAS.elderwatch) ? a : AREAS.home;
+  return (a === AREAS.peaks || a === AREAS.elderwatch || a === AREAS.farlands)
+    ? a : AREAS.home;
 }
 
 function wiseManOf(state) {
@@ -3159,13 +3166,16 @@ function routeTravel(b, state, save) {
   // back on your feet, or the boat would follow you into the mountains.
   const boat = boatOf(state);
   boat.riding = false;
-  // ARRIVING RESETS THE YARD. Elderwatch's barrels roll along one open row with
-  // a wall at each end, and a barrel against a wall can never be pushed back —
-  // there is nowhere to stand behind it. Being caught is the in-fiction undo,
-  // but a careful player may simply never be caught, and would then be left
-  // with a lock that cannot be opened on that save. Walking out and back in is
-  // the undo that is always available.
-  if (to === AREAS.elderwatch) resetRoom(state, AREAS.elderwatch, 0);
+  // LEAVING A MAP PUTS ITS ROCKS BACK.
+  //
+  // It used to be arrival, and only Elderwatch's bailey — added as a safety net
+  // because a barrel shoved against a wall can never be shoved back and a
+  // player who is never caught would be left holding a lock that cannot open.
+  // The rule is better as a rule: every map, every room of it, on the way OUT.
+  // A half-pushed puzzle is not a thing worth carrying across a mountain, and
+  // "walk out and back in" is then a reset the player can always reach for
+  // without having to be caught to get it.
+  resetMapRocks(state, from);
 
   const ARRIVALS = {
     peaks: 'The road climbs, the air thins, and the trees go from green to black. '
@@ -3174,6 +3184,9 @@ function routeTravel(b, state, save) {
     elderwatch: 'The mountain falls away behind you and the road runs out onto a flat, '
       + 'cold moor. Elderwatch sits on it: a square of wall with a barred gate, and nobody '
       + 'on it who is expecting anyone.',
+    farlands: 'The grass gives out. The ground west of the Home Block is old lava, red-black '
+      + 'and cracked underfoot, and it goes on further than you can see. Somewhere out here '
+      + 'are the tribes the Standard would raise. Not today: there is nothing here yet.',
   };
   pushLog(state, ARRIVALS[to] || `You have crossed into ${AREA_NAMES[to] || to}.`, 'quest');
   save(state);
@@ -3284,6 +3297,100 @@ const ALL_BOULDERS = Object.freeze([
 
 function hasGear(state, id) {
   return reachesOf(state).gear.indexOf(id) !== -1;
+}
+
+/**
+ * WHICH LOCKED DOORS HAVE BEEN OPENED, keyed `area:fN`.
+ *
+ * A door that a key opens BY BEING CARRIED is not a door the player ever opens
+ * — you walk at it and it is simply not there. Bruno, 2026-09-06: "the brass
+ * key should open the door at the top of the elderwatch tower, by using it with
+ * E on the door at the top (which should open)." So turning the key is an act,
+ * it happens once, and the door stays open afterwards: coming back to a door
+ * you have already unlocked and having to unlock it again is worse than never
+ * having locked it.
+ */
+function doorsOf(state) {
+  if (!isObj(state.doors)) state.doors = {};
+  return state.doors;
+}
+
+function doorKeyFor(area, floor) {
+  return floor > 0 ? `${area}:f${floor}` : `${area}`;
+}
+
+/** The locked door that applies where the player is standing, or null. */
+function lockFor(area, floor) {
+  if (area === AREAS.elderwatch && floor > 0) {
+    return (TOWER_FLOORS[floor - 1] || {}).lock || null;
+  }
+  return DOOR_KEYS[area] || null;
+}
+
+/**
+ * POST /api/door/open — turn the key in the door you are facing.
+ *
+ * Refuses unless the door is really there, you are beside it, and you are
+ * carrying what it wants. The client knows all three; the server owns whether
+ * the door is now open, because "the door is open" is a fact about the save.
+ */
+function routeDoorOpen(b, state, save) {
+  const area = areaOf(state);
+  const floor = area === AREAS.elderwatch ? towerFloorOf(state) : 0;
+  const lock = lockFor(area, floor);
+  if (!lock) return fail('there is no locked door here.');
+
+  const doors = doorsOf(state);
+  const id = doorKeyFor(area, floor);
+  if (doors[id]) return ok({ state, opened: true, already: true });
+
+  const pos = playerPosition(b, state);
+  if (Math.max(Math.abs(pos.x - lock.x), Math.abs(pos.y - lock.y)) > 1) {
+    return fail(`the door is at ${lock.x},${lock.y} — you are at ${pos.x},${pos.y}.`);
+  }
+  const items = questItemsOf(state);
+  if (!((num(items[lock.item]) ?? 0) > 0)) {
+    const def = QUEST_ITEM_DEFS[lock.item] || { name: lock.item };
+    return fail(`it is locked, and you are not carrying the ${def.name}.`);
+  }
+
+  doors[id] = true;
+  const def = QUEST_ITEM_DEFS[lock.item] || { name: lock.item };
+  pushLog(state, `The ${def.name} turns, and the door gives.`, 'quest');
+  save(state);
+  return ok({ state, opened: true, already: false, name: def.name });
+}
+
+/**
+ * POST /api/switch/throw — throw a winch, and leave it thrown.
+ *
+ * Recorded in `state.doors` beside the locked doors, because from the save's
+ * point of view they are the same fact: a way through that used to be shut and
+ * now is not. A plate could not do this — a plate is held while something heavy
+ * sits on it and shuts the instant you step off, which is no use for a gate you
+ * want to walk out of.
+ */
+function routeSwitchThrow(b, state, save) {
+  const area = areaOf(state);
+  if (area !== AREAS.elderwatch || towerFloorOf(state) > 0) {
+    return fail('there is nothing to throw here.');
+  }
+  const wanted = typeof b.id === 'string' ? b.id : '';
+  const sw = ELDERWATCH_SWITCHES.find((x) => x.id === wanted);
+  if (!sw) return fail(`"${wanted}" is not something this fort has.`);
+
+  const doors = doorsOf(state);
+  const id = `${area}:switch:${sw.id}`;
+  if (doors[id]) return ok({ state, thrown: true, already: true, opens: sw.opens });
+
+  const pos = playerPosition(b, state);
+  if (Math.max(Math.abs(pos.x - sw.x), Math.abs(pos.y - sw.y)) > 1) {
+    return fail(`the winch is at ${sw.x},${sw.y} — you are at ${pos.x},${pos.y}.`);
+  }
+  doors[id] = true;
+  pushLog(state, sw.thrown, 'quest');
+  save(state);
+  return ok({ state, thrown: true, already: false, opens: sw.opens, text: sw.thrown });
 }
 
 /** POST /api/reaches/gear — pick up a piece of gear you are standing on. */
@@ -3411,6 +3518,26 @@ function resetRoom(state, area, floor) {
   const prefix = floor > 0 ? `${area}:f${floor}:` : `${area}:`;
   for (const b of puzzleHere(area, floor).boulders) {
     r.boulders[`${prefix}${b.id}`] = { x: b.x, y: b.y };
+  }
+}
+
+/**
+ * EVERY MOVABLE ROCK ON A WHOLE MAP, BACK WHERE IT STARTED.
+ *
+ * Bruno, 2026-09-06: "when I leave the map block, like the reaches or
+ * elderwatch, etc, the rocks you can move should reset to their original
+ * positions." One call per map rather than per room, because a map is what the
+ * player leaves — the Keep's four floors are inside Elderwatch and go back with
+ * it, and the Warden's three are inside the Reaches and go back with those.
+ *
+ * `bouldersFor(peaks)` already joins the terrace puzzle and the Warden's room,
+ * so the mountain needs no special case. Only POSITIONS reset: gear you found
+ * and a Warden you broke are yours for good.
+ */
+function resetMapRocks(state, area) {
+  resetRoom(state, area, 0);
+  if (area === AREAS.elderwatch) {
+    for (const f of TOWER_FLOORS) resetRoom(state, area, f.n);
   }
 }
 

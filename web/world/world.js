@@ -4,6 +4,7 @@
 
 import { buildReaches as buildReachesMap } from './reaches.js';
 import { buildElderwatch as buildElderwatchMap, buildTowerFloor } from './elderwatch.js';
+import { buildFarlands as buildFarlandsMap } from './farlands.js';
 import {
   TILE,
   WORLD_W,
@@ -20,8 +21,8 @@ import {
   LAYER_LIFT, LAYER_NAMES, LAYER_COUNT,
   REACHES_GEAR, GEAR_SITES,
   EAST_ROAD, AREA_PUZZLES, bouldersFor, platesFor,
-  ELDERWATCH, ELDERWATCH_WATCH, crossingAt, questSitesFor, DOOR_KEYS, QUEST_ITEMS,
-  CHEESECAKE_HERMIT,
+  ELDERWATCH, ELDERWATCH_WATCH, crossingAt, crossingRows, questSitesFor, DOOR_KEYS, QUEST_ITEMS,
+  CHEESECAKE_HERMIT, ELDERWATCH_SWITCHES,
   TOWER, TOWER_FLOORS,
   WARDEN, WISE_CAVE,
   HUT,
@@ -61,6 +62,7 @@ import {
   GEAR_SPRITE,
   STANDARD_SPRITE,
   CODEX_SPRITE,
+  FIRE_PAN_FRAMES,
   WATCH_FRAMES,
   WARDEN_FRAMES,
   drawTextOutlined,
@@ -316,8 +318,16 @@ function sealBorder(tiles, idx, opts) {
   const o = opts || {};
   const solid = o.solid === undefined ? TILE_TYPES.tree : o.solid;
   const rock = o.rock === undefined ? TILE_TYPES.stone : o.rock;
-  const gy0 = Number.isFinite(o.gapY) ? o.gapY : -99;
-  const gy1 = gy0 + (Number.isFinite(o.gapH) ? o.gapH : 0) - 1;
+  // ONE GAP WAS ENOUGH UNTIL THE HOME BLOCK HAD TWO WAYS OUT: east to the
+  // Reaches and, since the farlands, west past the Woodsman. `gaps` is the
+  // general form; `gapSide`/`gapY`/`gapH` still work and mean one of them.
+  const gaps = Array.isArray(o.gaps) ? o.gaps.slice() : [];
+  if (o.gapSide) gaps.push({ side: o.gapSide, y0: o.gapY, h: o.gapH });
+  const inGap = (side, y) => gaps.some((g) => {
+    if (g.side !== side) return false;
+    const a = Number.isFinite(g.y0) ? g.y0 : -99;
+    return y >= a && y <= a + (Number.isFinite(g.h) ? g.h : 0) - 1;
+  });
 
   const wall = (x, y) => {
     // Water and sand at the edge become ROCK; anything else becomes the solid.
@@ -329,10 +339,8 @@ function sealBorder(tiles, idx, opts) {
 
   for (let x = 0; x < WORLD_W; x += 1) { wall(x, 0); wall(x, WORLD_H - 1); }
   for (let y = 0; y < WORLD_H; y += 1) {
-    const inGapEast = o.gapSide === 'east' && y >= gy0 && y <= gy1;
-    const inGapWest = o.gapSide === 'west' && y >= gy0 && y <= gy1;
-    if (!inGapWest) wall(0, y);
-    if (!inGapEast) wall(WORLD_W - 1, y);
+    if (!inGap('west', y)) wall(0, y);
+    if (!inGap('east', y)) wall(WORLD_W - 1, y);
   }
 }
 
@@ -347,6 +355,8 @@ export function createWorld(seed, area) {
   // Elderwatch is flat — one layer everywhere, no lift, no cliff face, no
   // ledge. The mountain's whole vocabulary is deliberately absent from it.
   if (area === AREAS.elderwatch) return buildElderwatchMap(s);
+  // The farlands are raw — ground, a wall and the road in. See world/farlands.js.
+  if (area === AREAS.farlands) return buildFarlandsMap(s);
 
   for (let y = 0; y < WORLD_H; y++) {
     for (let x = 0; x < WORLD_W; x++) {
@@ -546,13 +556,46 @@ export function createWorld(seed, area) {
   for (let y = CROSSING.gapY; y < CROSSING.gapY + CROSSING.gapH; y += 1) {
     for (let x = HUT.x; x < WORLD_W; x += 1) tiles[idx(x, y)] = TILE_TYPES.path;
   }
+
+  // THE ROAD WEST, past the Woodsman, out to the farlands.
+  //
+  // Bruno asked for this to change NOTHING but the road and the wall: "dont
+  // change the terrain, just add path in grass near the map border and remove
+  // the stone walls to create an opening." So it paints path over the tiles
+  // that are already grass and leaves everything else — the Woodsman's trees,
+  // his camp, the shoreline — exactly where it is. A road that bulldozed the
+  // grove to reach the edge would be a different request.
+  const west = crossingRows(AREAS.home, 'west');
+  if (west) {
+    for (let y = west.y0; y <= west.y1; y += 1) {
+      // THE OPENING, x1-8: the corner is noise rock and trees, and three rows
+      // of road that stop dead against it are not a way out. Bruno sanctioned
+      // exactly this much — "remove the stone walls to create an opening" — and
+      // no more. It runs SOUTH of the Woodsman's clearing, whose ring is x6-12
+      // by y36-41 and must keep having exactly one door in it.
+      for (let x = 1; x <= 8; x += 1) tiles[idx(x, y)] = TILE_TYPES.path;
+      // ...and beyond that, road only where there was already open grass, so it
+      // joins the path already coming down from the grove door rather than
+      // ploughing on through whatever is in the way.
+      for (let x = 9; x <= 14; x += 1) {
+        if (tiles[idx(x, y)] === TILE_TYPES.grass) tiles[idx(x, y)] = TILE_TYPES.path;
+      }
+    }
+  }
+
   sealBorder(tiles, idx, {
     solid: TILE_TYPES.tree,
     rock: TILE_TYPES.stone,
-    gapSide: 'east',
-    gapY: CROSSING.gapY,
-    gapH: CROSSING.gapH,
+    gaps: [
+      { side: 'east', y0: CROSSING.gapY, h: CROSSING.gapH },
+      ...(west ? [{ side: 'west', y0: west.y0, h: west.y1 - west.y0 + 1 }] : []),
+    ],
   });
+  // ...and the gap itself is ROAD, not whatever noise put there: the three rows
+  // the border leaves open have to be walkable or the opening is decorative.
+  if (west) {
+    for (let y = west.y0; y <= west.y1; y += 1) tiles[idx(0, y)] = TILE_TYPES.path;
+  }
 
   // --- The Stonemason's mountain, south-east.
   //
@@ -1259,6 +1302,9 @@ export function createGame(canvas) {
   }
 
   function setState(next) {
+    // Fresh state, fresh lists: a push that lands mid-frame must not be read
+    // through a cache built before it arrived.
+    invalidateFrameCaches();
     state = next || null;
     // BOARDING AND LEAVING THE BOAT ARE TELEPORTS, and so is crossing maps.
     //
@@ -1449,7 +1495,7 @@ export function createGame(canvas) {
     }
     if (t === TILE_TYPES.lockdoor) {
       const lock = lockHere();
-      return !!lock && lock.x === tx && lock.y === ty && holdsItem(lock.item);
+      return !!lock && lock.x === tx && lock.y === ty && doorOpened();
     }
     return false;
   }
@@ -1493,10 +1539,17 @@ export function createGame(canvas) {
       if (!name || !gateOpen(name)) return true;
       return false;
     }
-    // A LOCKED DOOR opens for whoever carries its key, and for nobody else.
+    // A LOCKED DOOR IS SHUT UNTIL YOU HAVE OPENED IT.
+    //
+    // It used to open for whoever merely CARRIED the key — you walked at it and
+    // it was simply not there, so the key was never turned by anybody. Bruno,
+    // 2026-09-06: "the brass key should open the door at the top of the
+    // elderwatch tower, by using it with E on the door at the top (which should
+    // open)." Turning it is an act now; the save remembers, so a door you have
+    // opened stays open.
     if (t === TILE_TYPES.lockdoor) {
       const lock = lockHere();
-      if (lock && lock.x === tx && lock.y === ty) return !holdsItem(lock.item);
+      if (lock && lock.x === tx && lock.y === ty) return !doorOpened();
       return true;
     }
     // Cracked crag stops being a wall once it has been broken — which the
@@ -2016,6 +2069,11 @@ export function createGame(canvas) {
     // A felled tree is a stump forever, whether or not the stump art has faded.
     if (e && e.felled) return { x: tx, y: ty, tile: plantedTileName(), onStump: true };
     if (isDepleted(tx, ty)) return null;          // mined rubble, dredged reeds
+    // NOT ON A CARVED ROUTE. The Reaches' roads and the labyrinth's corridors
+    // are plain snow, snow is plantable, and a planted tree is solid — one
+    // sapling in a one-tile corridor seals the maze behind you. `routed` is the
+    // set the worldgen already keeps of every tile it deliberately cut.
+    if (world.routed && world.routed.has(`${tx},${ty}`)) return null;
     if (!PLANTABLE_TILE_IDS.has(world.tiles[ty * WORLD_W + tx])) return null;
     return { x: tx, y: ty, tile: plantedTileName(), onStump: false };
   }
@@ -2374,7 +2432,37 @@ export function createGame(canvas) {
    * state arrives, and for a save written before the mountain existed, they
    * stand where the design puts them.
    */
+  /**
+   * PER-FRAME CACHES for the two lists everything else asks for.
+   *
+   * `boulderList()` allocated a fresh array on every call, and `boulderAt()`
+   * calls it — which `stepBlocked` does several times per frame per axis, and
+   * which `plateHeld` -> `gateOpen` does again for every gate tile. `patrolList()`
+   * now walks each beat's lane looking for a wall, and both the collision pass
+   * and the draw pass ask for it. Together that was hundreds of throwaway arrays
+   * a second: not slow arithmetic, but steady GC pressure, which shows up as
+   * exactly the symptom Bruno reported — movement that hitches in small stops
+   * rather than running slow.
+   *
+   * Stamped with the frame's clock, so nothing can read a stale list: every
+   * caller inside one update/render pass sees the same answer, and the next
+   * frame rebuilds.
+   */
+  let boulderCache = { at: -1, list: null };
+  let patrolCache = { at: -1, list: null };
+  function invalidateFrameCaches() {
+    boulderCache.at = -1;
+    patrolCache.at = -1;
+  }
+
   function boulderList() {
+    if (boulderCache.at === clockMs && boulderCache.list) return boulderCache.list;
+    const list = boulderListUncached();
+    boulderCache = { at: clockMs, list };
+    return list;
+  }
+
+  function boulderListUncached() {
     const saved = reachesState().boulders;
     const out = [];
     const set = puzzleSet();
@@ -2404,12 +2492,36 @@ export function createGame(canvas) {
   }
 
   /** An ice gate stands until every plate of its name is held. */
+  /** Has a winch that opens this gate been thrown, and stayed thrown? */
+  function switchThrown(id) {
+    const doors = (state && state.doors) || {};
+    return !!doors[`${worldArea}:switch:${id}`];
+  }
+
+  /**
+   * A gate stands until every plate of its name is held — OR until a winch
+   * that opens it has been thrown. Plates are a grip you must keep; a winch is
+   * a decision you made once, which is what a front gate needs.
+   */
   function gateOpen(name) {
+    if (switchesHere().some((w) => w.opens === name && switchThrown(w.id))) return true;
     const set = puzzleSet();
     const all = towerFloor > 0 ? (set ? set.plates : []) : platesFor(worldArea);
     const plates = all.filter((p) => p.gate === name);
     if (!plates.length) return false;
     return plates.every((p) => plateHeld(p.x, p.y));
+  }
+
+  /** The winches on this map and floor. Only Elderwatch's bailey has any. */
+  function switchesHere() {
+    if (worldArea !== AREAS.elderwatch || towerFloor > 0) return [];
+    return ELDERWATCH_SWITCHES;
+  }
+  function switchInReach() {
+    const t = { x: player.tileX(), y: player.tileY() };
+    const f = player.facingTile();
+    return switchesHere().find((w) => (Math.max(Math.abs(t.x - w.x), Math.abs(t.y - w.y)) <= 1)
+      || (w.x === f.x && w.y === f.y)) || null;
   }
   function gateAt(tx, ty) {
     const set = puzzleSet();
@@ -2432,6 +2544,12 @@ export function createGame(canvas) {
     const f = player.facingTile();
     return questSiteAt(t.x, t.y) || questSiteAt(f.x, f.y);
   }
+  /** Has the locked door on this floor been unlocked already? */
+  function doorOpened() {
+    const doors = (state && state.doors) || {};
+    return !!doors[towerFloor > 0 ? `${worldArea}:f${towerFloor}` : `${worldArea}`];
+  }
+
   /** The locked door that applies here — the floor's, or the map's. */
   function lockHere() {
     const f = floorDef();
@@ -2547,8 +2665,15 @@ export function createGame(canvas) {
     return vertical ? { ...at, y: last } : { ...at, x: last };
   }
 
-  /** Everyone walking a beat on this map. */
+  /** Everyone walking a beat on this map. Cached for the frame. */
   function patrolList() {
+    if (patrolCache.at === clockMs && patrolCache.list) return patrolCache.list;
+    const list = patrolListUncached();
+    patrolCache = { at: clockMs, list };
+    return list;
+  }
+
+  function patrolListUncached() {
     if (worldArea === AREAS.peaks) {
       const w = wardenState();
       return w ? [stopAtBlocker(WARDEN, w)] : [];
@@ -2763,6 +2888,15 @@ export function createGame(canvas) {
       // After the dialogue check, so E still pages through what he is saying.
       if (heraldInReach()) { fireInteract('__herald'); return; }
       if (hermitInReach()) { fireInteract('__cheesecake'); return; }
+      {
+        const lock = lockHere();
+        const f3 = player.facingTile();
+        if (lock && lock.x === f3.x && lock.y === f3.y && !doorOpened() && holdsItem(lock.item)) {
+          fireInteract('__door'); return;
+        }
+        const w = switchInReach();
+        if (w && !switchThrown(w.id)) { fireInteract(`__switch:${w.id}`); return; }
+      }
       // A panel is already on screen: E closes it and does NOTHING else.
       // Bruno: "if I click E again while its open it should also close." Doing
       // it before the gather branch matters — otherwise the keypress meant to
@@ -2914,6 +3048,10 @@ export function createGame(canvas) {
 
   function update(dtMs, now) {
     clockMs = Date.now();
+    // A NEW FRAME IS A NEW ANSWER. Keyed on the clock alone, two frames landing
+    // inside the same millisecond would share a list — harmless for positions,
+    // wrong for one frame after a push lands.
+    invalidateFrameCaches();
     simMs += dtMs;
     // NOTHING ON SCREEN MEANS NOTHING MOVES.
     //
@@ -3116,9 +3254,17 @@ export function createGame(canvas) {
       if (Math.abs(want - drawLift) < 0.05) drawLift = want;
     }
 
-    // Smooth camera follow (exponential lerp, framerate independent).
+    /**
+     * SMOOTH CAMERA FOLLOW (exponential lerp, framerate independent).
+     *
+     * 0.001 left the camera a long way behind: at 60fps it closes only ~11% of
+     * the gap per frame, so it trails the scholar while she walks and then
+     * drifts to a stop after she does. Combined with the pixel snap below, that
+     * drift is what read as the world sliding underneath her. 1e-7 closes ~80%
+     * a frame — still eased, still framerate-independent, but it sits on her.
+     */
     const t = camTarget();
-    const k = 1 - Math.pow(0.001, dtMs / 1000);
+    const k = 1 - Math.pow(1e-7, dtMs / 1000);
     cam.x += (t.x - cam.x) * k;
     cam.y += (t.y - cam.y) * k;
     cam.x = clampCam(cam.x, view.w, WORLD_PX_W);
@@ -3365,11 +3511,9 @@ export function createGame(canvas) {
     d.fillStyle = '#05060c';
     d.fillRect(0, 0, w, h);
 
-    // THE OLD MAN KEEPS A FIRE. Every other dark place in the game is lit by
-    // what you carry, and the Stonemason's chamber can afford that because
-    // nothing in it has to be SEEN to matter. The summit cave is the end of the
-    // Herald's errand: arriving without a lantern charm and finding a black
-    // room with a voice in it is not the scene. The hearth is part of the room.
+    // ONE POOL, AND IT IS THE ONE YOU CARRY. Every dark place in the game is
+    // lit by the lantern and by nothing else — the summit cave included, since
+    // its hearth was removed.
     const pools = [];
     if (radiusTiles > 0) {
       pools.push({
@@ -3405,52 +3549,22 @@ export function createGame(canvas) {
       }
     }
 
-    // THE OLD MAN'S CAVE IS LIT AS A ROOM, not by a pool.
+    // THE CAVE IS LIT BY WHAT YOU CARRY, AND BY NOTHING ELSE.
     //
-    // Every other dark place in the game is lit by what you carry, and the
-    // Stonemason's chamber can afford that because nothing in it has to be
-    // SEEN. This is the end of the Herald's errand: arriving without a lantern
-    // charm and finding a black room with a voice in it is not the scene.
+    // It used to light itself: a `destination-out` wash lifted 90% of the dark
+    // off the WHOLE room, with a warmer radial at the old man's hearth on top.
+    // The reasoning was that arriving at the end of the Herald's errand without
+    // a lantern and finding a black room with a voice in it is not the scene.
     //
-    // A radial pool was the first attempt and was wrong twice — unclipped it
-    // lit the mountainside through two walls, and clipped to the room it left a
-    // hard-edged puddle with half the chamber still in the dark. The room is a
-    // room: the wash is lifted off ALL of it, and off the doorway, so the edge
-    // of the light falls exactly on the walls. The hearth is a warmer spot
-    // inside that, not the only thing you can see by.
-    if (worldArea === AREAS.peaks) {
-      const lift = liftAt(WISE_MAN.x, WISE_MAN.y);
-      const rx = (WISE_CAVE.x * TILE - camX) * S;
-      const ry = (WISE_CAVE.y * TILE - camY - lift) * S;
-      d.globalCompositeOperation = 'destination-out';
-      d.fillStyle = 'rgba(0,0,0,0.90)';
-      d.fillRect(rx, ry, WISE_CAVE.w * TILE * S, WISE_CAVE.h * TILE * S);
-      d.fillRect((WISE_CAVE.doorX * TILE - camX) * S, (WISE_CAVE.doorY * TILE - camY - lift) * S,
-        TILE * S, TILE * S);
-      const hx = (WISE_MAN.x * TILE + TILE / 2 - camX) * S;
-      const hy = (WISE_MAN.y * TILE + TILE / 2 - camY - lift) * S;
-      const hr = Math.max(1, 3.5 * TILE * S);
-      let fire = null;
-      try { fire = d.createRadialGradient(hx, hy, 0, hx, hy, hr); } catch { fire = null; }
-      if (fire) {
-        // The hearth's own glow is clipped to the room as well. Unclipped it
-        // reached three and a half tiles in every direction and lit the
-        // mountainside straight through the cave's east wall.
-        d.save();
-        d.beginPath();
-        d.rect(rx, ry, WISE_CAVE.w * TILE * S, WISE_CAVE.h * TILE * S);
-        d.rect((WISE_CAVE.doorX * TILE - camX) * S, (WISE_CAVE.doorY * TILE - camY - lift) * S,
-          TILE * S, TILE * S);
-        d.clip();
-        fire.addColorStop(0, 'rgba(0,0,0,1)');
-        fire.addColorStop(0.6, 'rgba(0,0,0,0.6)');
-        fire.addColorStop(1, 'rgba(0,0,0,0)');
-        d.fillStyle = fire;
-        d.fillRect(hx - hr, hy - hr, hr * 2, hr * 2);
-        d.restore();
-      }
-      d.globalCompositeOperation = 'source-over';
-    }
+    // Bruno, 2026-09-06: "the light from the lamp works correctly in the wise
+    // man's cave, but there is also light in the area. remove that preexisting
+    // lighting so that the only lighting is the one of the lamp around my
+    // character." So the room wash and the hearth glow are gone, and the summit
+    // cave now works exactly like the Stonemason's: one pool, and it is yours.
+    //
+    // The cost is real and deliberate — with no lantern the chamber is dark and
+    // the Wise Man is a voice you cannot see. He still speaks; E still reaches
+    // him. CAVE_DARKNESS is not 1, so it is gloom rather than pitch black.
 
     g.save();
     g.globalAlpha = darkAlpha;
@@ -3598,8 +3712,21 @@ export function createGame(canvas) {
     // world-space integer landing on an exact device pixel (so tiles stay crisp
     // and seamless) while leaving the camera free to move in sub-world-pixel
     // steps. Every draw site then rounds ONCE, in screen space, at the end.
-    const camX = Math.round(cam.x * S) / S;
-    const camY = Math.round(cam.y * S) / S;
+    /**
+     * ONE PIXEL GRID FOR EVERYTHING.
+     *
+     * The camera was snapped to whole DEVICE pixels while the scholar is drawn
+     * at `Math.round((p.px - camX) * S)` — rounded again, separately. Two
+     * independent roundings on the same frame means her offset from the centre
+     * of the screen wobbles by a pixel as the camera crosses each grid line,
+     * every few frames, forever. That is the shimmer that reads as small stops.
+     *
+     * Snapping the camera to whole WORLD pixels instead puts the camera and
+     * everything drawn against it on the SAME grid, so the second rounding is
+     * exact and she stops vibrating relative to the ground she is walking on.
+     */
+    const camX = Math.round(cam.x);
+    const camY = Math.round(cam.y);
 
     ctx.imageSmoothingEnabled = false;
     ctx.fillStyle = PALETTE.bg;
@@ -3810,6 +3937,11 @@ export function createGame(canvas) {
             - liftAt(CHEESECAKE_HERMIT.x, CHEESECAKE_HERMIT.y),
           kind: 'h', ref: CHEESECAKE_HERMIT,
         });
+        const fire = { x: CHEESECAKE_HERMIT.x + 1, y: CHEESECAKE_HERMIT.y };
+        drawables.push({
+          sortY: (fire.y + 1) * TILE - liftAt(fire.x, fire.y),
+          kind: 'f', ref: fire,
+        });
       }
     }
     drawables.sort((a, b) => a.sortY - b.sortY);
@@ -3863,6 +3995,12 @@ export function createGame(canvas) {
       } else if (d.kind === 'o') {
         const q = mountainAt(d.ref.x, d.ref.y, -2);
         drawSprite(ctx, WISEMAN_SPRITE, q.px, q.py, S);
+      } else if (d.kind === 'f') {
+        // The cookfire, drawn over its brazier tile so the pan sits on the
+        // flames rather than beside them.
+        const q = mountainAt(d.ref.x, d.ref.y, -1);
+        drawSprite(ctx, FIRE_PAN_FRAMES[Math.floor(clockMs / 240) % FIRE_PAN_FRAMES.length],
+          q.px, q.py, S);
       } else if (d.kind === 'h') {
         // The hermit, warming his hands. Borrows the Wise Man's art — two old
         // men in very large coats at either end of the same shelf is a joke
@@ -4045,15 +4183,30 @@ export function createGame(canvas) {
       }
       const lock = lockHere();
       const f = player.facingTile();
-      if (lock && lock.x === f.x && lock.y === f.y && !holdsItem(lock.item)) {
+      if (lock && lock.x === f.x && lock.y === f.y && !doorOpened()) {
         const def = QUEST_ITEMS[lock.item] || { name: lock.item };
-        const label = `locked — it wants the ${def.name}`;
+        const label = holdsItem(lock.item)
+          ? `E  turn the ${def.name}`
+          : `locked — it wants the ${def.name}`;
         const w = textWidth(label, ts);
         const lx = clampToCanvas(
           Math.round((lock.x * TILE + TILE / 2 - camX) * S - w / 2), w
         );
         const ly = Math.round((lock.y * TILE - camY - liftAt(lock.x, lock.y)) * S) - 12 * S;
-        drawTextOutlined(ctx, label, lx, ly, ts, PALETTE.textDim, '#0d0f16');
+        drawTextOutlined(ctx, label, lx, ly, ts,
+          holdsItem(lock.item) ? PALETTE.accent : PALETTE.textDim, '#0d0f16');
+        lastPrompts.push(label);
+      }
+      const winch = switchInReach();
+      if (winch) {
+        const label = switchThrown(winch.id) ? 'the winch is thrown' : winch.prompt;
+        const w2 = textWidth(label, ts);
+        const wx = clampToCanvas(
+          Math.round((winch.x * TILE + TILE / 2 - camX) * S - w2 / 2), w2
+        );
+        const wy = Math.round((winch.y * TILE - camY - liftAt(winch.x, winch.y)) * S) - 12 * S;
+        drawTextOutlined(ctx, label, wx, wy, ts,
+          switchThrown(winch.id) ? PALETTE.textDim : PALETTE.accent, '#0d0f16');
         lastPrompts.push(label);
       }
     }

@@ -205,6 +205,8 @@ const api = {
   climbTower: (dir) => post('/api/tower/climb', { dir }),
   pushBoulder: (x, y, dx, dy) => post('/api/reaches/push', { x, y, dx, dy }),
   wardenReset: () => post('/api/reaches/reset', {}),
+  openDoor: () => post('/api/door/open', {}),
+  throwSwitch: (id) => post('/api/switch/throw', { id }),
   wardenBeaten: () => post('/api/reaches/warden', {}),
   travel: () => post('/api/travel'),
   // v5 charms: worn, not held. slot is 1-based as the player sees it.
@@ -570,6 +572,22 @@ game.onInteract = async (buildingId) => {
   if (buildingId === '__wiseman') { await commitPosition(); speakTo('wiseman', null); return; }
   // The Cheesecake Hermit. No server round trip at all: he changes nothing, so
   // asking the server for permission to hear about pudding would be silly.
+  // Turning the Brass Key in the Hall's door. The server owns whether the door
+  // is open, because that is a fact about the save rather than about this frame.
+  if (buildingId === '__door') {
+    await commitPosition();
+    const r = await api.openDoor();
+    if (!r || !r.ok) { game.toast((r && r.error) || 'it will not turn', '#a494c4'); return r; }
+    if (!r.already) game.toast('the door gives', '#e8b64c');
+    return r;
+  }
+  if (typeof buildingId === 'string' && buildingId.indexOf('__switch:') === 0) {
+    await commitPosition();
+    const r = await api.throwSwitch(buildingId.slice('__switch:'.length));
+    if (!r || !r.ok) { game.toast((r && r.error) || 'it will not move', '#a494c4'); return r; }
+    if (!r.already) game.toast(r.text || 'the winch turns', '#e8b64c');
+    return r;
+  }
   if (buildingId === '__cheesecake') {
     dialogue.show(CHEESECAKE_DIALOGUE.lines.slice(), { name: CHEESECAKE_DIALOGUE.name });
     return;

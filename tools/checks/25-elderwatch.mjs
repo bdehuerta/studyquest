@@ -182,8 +182,11 @@ export default {
       equals: false,
     },
     {
-      type: 'assert', label: 'and the watch walk a ring, not the inside of the keep',
-      expr: "return window.__sqWorld.getMountain().patrols;", equals: 4,
+      // SIX, walking a ring around the keep. Two of them used to pace straight
+      // through it; one of the four that replaced them ended his beat flush
+      // against a shed and stood there facing the wall.
+      type: 'assert', label: 'and six of the watch walk a ring, not the inside of the keep',
+      expr: "return window.__sqWorld.getMountain().patrols;", equals: 6,
     },
     // The far barrel first. Park the near one on its plate and the far one can
     // no longer get past it — recoverable, but only by knowing to shove it on.
@@ -260,6 +263,50 @@ export default {
     },
     { type: 'note', text: 'The rest of the Codex waits on the ring, at the top of the tower.' },
 
+    { type: 'note', text: 'LEAVING PUTS THE ROCKS BACK.' },
+    {
+      // Bruno, 2026-09-06: "when I leave the map block ... the rocks you can
+      // move should reset to their original positions." Walk west out of
+      // Elderwatch and back in, and the barrels are where they started — which
+      // is also the reset a player can always reach for, since a barrel shoved
+      // against a wall can never be shoved back.
+      type: 'api', route: '/api/player/move', body: { x: 1, y: 33 }, expectOk: true,
+      label: 'walk to the west road',
+    },
+    { type: 'api', route: '/api/travel', body: { x: 1, y: 33 }, expectOk: true, label: 'leave for the Reaches' },
+    // The road back is the crossing COLUMN at x62; x61 is where you land.
+    { type: 'api', route: '/api/player/move', body: { x: 62, y: 33 }, expectOk: true, label: 'turn straight round' },
+    {
+      type: 'api', route: '/api/travel', body: { x: 62, y: 33 }, expectOk: true,
+      label: 'and come back', path: 'area', equals: 'elderwatch',
+    },
+    {
+      type: 'eval', label: 'pull it into the page',
+      expr: "return window.sqMenu.reloadState().then(() => 'reloaded');",
+    },
+    { type: 'wait', ms: 700 },
+    {
+      type: 'assert', label: 'the barrels are back at the start of the yard',
+      expr: `
+        return import('/shared/constants.js').then((C) => {
+          const want = JSON.stringify(C.ELDERWATCH_BOULDERS.map((b) => [b.id, b.x, b.y]));
+          const got = JSON.stringify(
+            window.__sqWorld.getMountain().boulders.map((b) => [b.id, b.x, b.y]));
+          return got === want;
+        });
+      `,
+      equals: true,
+    },
+    {
+      type: 'assert', label: 'and the barred door is shut again',
+      expr: "return window.__sqWorld.getMountain().gateOpen.guardroom;", equals: false,
+    },
+    {
+      type: 'assert', label: 'but the Codex you took is still yours',
+      expr: "return JSON.stringify(window.__sqPanels.codex.gate());",
+      equals: '{"book":true,"ring":false}',
+    },
+
     { type: 'note', text: 'THE KEEP. Four floors, and the map greys out around each one.' },
     {
       type: 'eval', label: 'walk to the tower door',
@@ -289,8 +336,9 @@ export default {
       equals: true,
     },
     {
-      type: 'assert', label: 'and two watchmen walk it',
-      expr: "return window.__sqWorld.getMountain().patrols;", equals: 2,
+      // Three, since the Guardroom floor got a third beat along row 17.
+      type: 'assert', label: 'and three watchmen walk it',
+      expr: "return window.__sqWorld.getMountain().patrols;", equals: 3,
     },
     {
       type: 'eval', label: 'stand in a watchman’s path',
@@ -422,7 +470,26 @@ export default {
       // AND IT IS IN A WALL NOW. The door used to stand alone in an open round
       // room, so this same assertion passed while the Standard behind it could
       // simply be walked to. `tools/lib/geometry.mjs` asserts the walk-around.
-      type: 'assert', label: 'the shrine door opens for the Key',
+      // SHUT, EVEN HOLDING THE KEY. It used to open for whoever merely carried
+      // one — you walked at it and it was not there. The key gets TURNED now.
+      type: 'assert', label: 'the shrine door is shut even with the Key in hand',
+      expr: "return window.__sqWorld.probeStep(37, 23, 37, 22);", equals: true,
+    },
+    {
+      type: 'api', route: '/api/player/move', body: { x: 37, y: 23 }, expectOk: true,
+      label: 'stand at the door',
+    },
+    {
+      type: 'api', route: '/api/door/open', body: {}, expectOk: true,
+      label: 'turn the Brass Key in it', path: 'opened', equals: true,
+    },
+    {
+      type: 'eval', label: 'pull it into the page',
+      expr: "return window.sqMenu.reloadState().then(() => 'reloaded');",
+    },
+    { type: 'wait', ms: 600 },
+    {
+      type: 'assert', label: 'and now it is open, and stays open',
       expr: "return window.__sqWorld.probeStep(37, 23, 37, 22);", equals: false,
     },
     {

@@ -65,6 +65,32 @@ export function buildElderwatch(seed) {
     }
   }
 
+  // ---- 1b. A WOOD AROUND THE PRECINCT. The moor's own copses are thin and
+  //          leave the fort sitting on an empty green plate. This thickens the
+  //          ground OUTSIDE the wall — Bruno: "add more trees in elderwatch
+  //          around the tower precint in the ground floor (in the grass I
+  //          mean)" — densest a few tiles out and thinning with distance, so
+  //          the fort reads as a clearing somebody cut rather than a model on a
+  //          table. Everything inside the wall is overwritten by the bailey in
+  //          step 4, and the road is carved after this in step 2, so neither
+  //          the yard nor the way in can be closed by it.
+  for (let y = 1; y < WORLD_H - 1; y += 1) {
+    for (let x = 1; x < WORLD_W - 1; x += 1) {
+      if (tiles[idx(x, y)] !== T.grass) continue;
+      // Distance outside the wall, in tiles: 0 at the wall, growing outward.
+      const out = Math.max(
+        W.x0 - x, x - W.x1, W.y0 - y, y - W.y1, 0,
+      );
+      if (out <= 0) continue;                       // inside: that is the fort
+      if (out > 14) continue;                       // far off: leave the moor
+      // Thickest in the first few tiles of the treeline and thinning outward.
+      const near = Math.max(0, 1 - (out - 1) / 14);
+      const grain = scatter(x, y, (seed | 0) + 991);
+      const clump = scatter(Math.floor(x / 3), Math.floor(y / 3), (seed | 0) + 77);
+      if (grain < 0.16 + near * 0.34 && clump > 0.26) tiles[idx(x, y)] = T.tree;
+    }
+  }
+
   // ---- 2. the road in from the west, up to the fort's gate.
   const road = crossingRows('elderwatch', 'west');
   const roadY = road ? road.y0 + 1 : 33;
@@ -201,11 +227,22 @@ export function buildTowerFloor(n) {
   for (const prop of (floorDef.props || [])) {
     put(prop.x, prop.y, PROP_TILE[prop.kind] || T.crate);
   }
-  // A WALL ACROSS THE ROOM, so that the floor's locked door has something to be
-  // a door IN. Drawn before the lock, which then punches the one hole in it.
-  if (Number.isFinite(floorDef.shrineWallY)) {
+  // A WALL ACROSS THE ROOM, so that whatever guards the way on has something to
+  // be a door IN. Drawn BEFORE the arch, the gate and the lock, each of which
+  // then punches its own hole through it.
+  //
+  // Every floor of this tower shipped without one: a locked door, a barred gate
+  // and a bricked arch, each standing as three loose tiles in the middle of an
+  // open round room, each simply walked around. A door is only a door if it is
+  // in a wall.
+  if (Number.isFinite(floorDef.wallY)) {
     for (let x = TOWER.cx - TOWER.r; x <= TOWER.cx + TOWER.r; x += 1) {
-      put(x, floorDef.shrineWallY, T.rimewall);
+      put(x, floorDef.wallY, T.rimewall);
+    }
+  }
+  if (Number.isFinite(floorDef.wallX)) {
+    for (let y = TOWER.cy - TOWER.r; y <= TOWER.cy + TOWER.r; y += 1) {
+      put(floorDef.wallX, y, T.rimewall);
     }
   }
   for (const c of (floorDef.cracked || [])) put(c.x, c.y, T.crackedcrag);

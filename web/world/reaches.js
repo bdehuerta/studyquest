@@ -27,7 +27,7 @@ import {
   WORLD_W, WORLD_H, TILE_TYPES,
   CROSSING, TERRACE_BANDS, CLIMBS, EAST_ROAD, crossingRows,
   GEAR_SITES, REACHES_PLATES, REACHES_GATES, REACHES_BOULDERS,
-  WARDEN, WISE_CAVE,
+  WARDEN, WISE_CAVE, CHEESECAKE_HERMIT,
 } from '../../shared/constants.js';
 
 const T = TILE_TYPES;
@@ -313,6 +313,11 @@ export function buildReaches(seed) {
     // pass that did it shipped with the tower.
     put(WISE_CAVE.doorX - 1, WISE_CAVE.doorY, T.brazier);
     put(WISE_CAVE.doorX + 1, WISE_CAVE.doorY, T.brazier);
+    // THE HERMIT'S COOKFIRE, on the tile in front of him — the side the rest of
+    // the Summit is on, so you walk up to the fire before you reach the man. A
+    // brazier tile, so it is solid and you cannot stand in it; the pan and the
+    // crepe are drawn over the top by world.js.
+    put(CHEESECAKE_HERMIT.x + 1, CHEESECAKE_HERMIT.y, T.brazier);
   }
 
   // ---- 10. THE TERRACE WALLS.
@@ -378,7 +383,17 @@ export function buildReaches(seed) {
     }
   }
 
-  return { w: WORLD_W, h: WORLD_H, seed: seed | 0, tiles, layers };
+  /**
+   * `routed` GOES OUT WITH THE MAP.
+   *
+   * It already existed so decoration would not scatter crag into the maze. It
+   * matters a second time for PLANTING: roads and labyrinth corridors up here
+   * are carved as plain SNOW, snow is a plantable tile, and a planted tree is
+   * SOLID — so a sapling dropped in a one-tile corridor can seal the labyrinth
+   * with the player on the wrong side of it. Bruno, 2026-09-06: "in the reaches'
+   * labyrinth I should not be able to plant trees." Quite.
+   */
+  return { w: WORLD_W, h: WORLD_H, seed: seed | 0, tiles, layers, routed };
 
   /** Cut a straight run of walkable ground, keeping whatever layer is there. */
   function road(x0, y0, x1, y1) {

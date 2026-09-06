@@ -87,6 +87,11 @@ export const PAL = Object.freeze({
   T: '#e2795a', // roof tile, sunlit
   U: '#1d3a52', // deep shadow blue (under-eaves)
   V: '#efc9a0', // warm plaster
+
+  // --- v10: the farlands. Cooled lava — near-black with the heat still in the
+  //     cracks. Deliberately dark, so the red reads as embers rather than clay.
+  W: '#3a1c1c', // basalt, the cold crust
+  X: '#5e2622', // the crack between plates, still warm
 });
 
 /* ------------------------------------------------------------------ *
@@ -2372,6 +2377,24 @@ const WARDEN_B = [
 ];
 
 // The Wise Man: an old man sitting, wrapped in a blanket, by a small fire.
+const EMBERROCK_0 = [
+  'WXWWXWWWXWWWXWWX',
+  'XWWWXWWXWWXWWWXW',
+  'WWXWWWWWXWWWWXWW',
+  'WXWWWXWWWWXWWWWX',
+  'WWWWXWWWXWWWXWWW',
+  'XWWXWWWWWWXWWWXW',
+  'WWWWWXWWXWWWWWWW',
+  'WXWWWWWWWWWXWWXW',
+  'WWWXWWXWWWWWWWWX',
+  'XWWWWWWWXWWXWWWW',
+  'WWWWXWWWWWWWWXWW',
+  'WXWWWWWXWWXWWWWW',
+  'WWWXWWWWWWWWXWWX',
+  'XWWWWXWWXWWWWWWW',
+  'WWXWWWWWWWXWWXWW',
+  'WWWWWXWWWWWWWWWW',
+];
 const WISEMAN_0 = [
   '................',
   '.....000000.....',
@@ -2419,6 +2442,8 @@ export const SPRITES = {
     lockdoor: makeSprite(LOCKDOOR_0, PAL, T16R),
     brazier: makeSprite(BRAZIER_0, PAL, T16),
     crate: makeSprite(CRATE_0, PAL, T16),
+    // v10 — the farlands: cooled lava, red-black and cracked.
+    emberrock: makeSprite(EMBERROCK_0, PAL, T16R),
     // v2 — harvested variants, drawn in place of a depleted node.
     stump: makeSprite(TREE_TILE_0, PAL, T16), // see art.js SPRITES3.stump
     bloomstump: makeSprite(BLOOM_STUMP_0, PAL, T16),
@@ -2638,6 +2663,54 @@ const CODEX_0 = [
   '......0110......',
 ];
 export const CODEX_SPRITE = makeSprite(CODEX_0, PAL, { w: 16, h: 16, label: 'codex' });
+
+/**
+ * THE HERMIT'S FIRE, with a pan on it and a crepe going.
+ *
+ * Two frames, so the flame moves — a still fire on a windy summit reads as a
+ * painted rock. The pan is iron seen three-quarters on with the handle out to
+ * the right, and the crepe is the one warm pale thing on this whole mountain.
+ */
+const FIRE_PAN_A = [
+  '................',
+  '................',
+  '.......n........',
+  '..n...nsn.......',
+  '.nsn..nsn..n....',
+  '.nsn.nsson.nsn..',
+  'dddddddddddddddd',
+  'd00000000000000d',
+  '.099999999990jjj',
+  '..08888888880...',
+  '...0000000000...',
+  '..eeeeeeeeee....',
+  '...eeeeeeee.....',
+  '....dddddd......',
+  '................',
+  '................',
+];
+const FIRE_PAN_B = [
+  '................',
+  '................',
+  '...n............',
+  '..nsn......n....',
+  '..nsn.n...nsn...',
+  '.nson.nsn.nsn...',
+  'dddddddddddddddd',
+  'd00000000000000d',
+  '.099999999990jjj',
+  '..08999998880...',
+  '...0000000000...',
+  '..eeeeeeeeee....',
+  '...eeeeeeee.....',
+  '....dddddd......',
+  '................',
+  '................',
+];
+export const FIRE_PAN_FRAMES = Object.freeze([
+  makeSprite(FIRE_PAN_A, PAL, { w: 16, h: 16, label: 'firePan0' }),
+  makeSprite(FIRE_PAN_B, PAL, { w: 16, h: 16, label: 'firePan1' }),
+]);
 /** The Elderwatch watch, on their rounds. Two frames, like the Warden. */
 export const WATCH_FRAMES = Object.freeze([
   makeSprite(WATCH_A, PAL, { w: 16, h: 16, label: 'watch0' }),
@@ -2649,11 +2722,14 @@ export const WARDEN_FRAMES = Object.freeze([
   makeSprite(WARDEN_B, PAL, { w: 16, h: 16, label: 'warden1' }),
 ]);
 
+
 const TILE_NAME_BY_ID = [
   'grass', 'path', 'water', 'stone', 'tree', 'sand', 'bluetree',
   'snow', 'ice', 'snowpine', 'crag',
   'cliff', 'ladder', 'stair', 'crackedcrag', 'icegate', 'plate', 'rockfloor',
   'rimewall', 'snowroad', 'lockdoor', 'brazier', 'crate',
+  // v10 — the farlands
+  'emberrock',
 ];
 
 /**

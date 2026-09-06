@@ -126,6 +126,14 @@ export const TILE_TYPES = Object.freeze({
   // plate, which is the one thing in the game a player must never misread.
   brazier: 21,
   crate: 22,
+  /**
+   * THE FARLANDS' GROUND: cooled lava, red-black and cracked.
+   *
+   * The fourth map is raw — reddish ground and nothing else — because it is
+   * where the Ashen Standard is going and that is a future expansion. One tile
+   * is enough to make it a PLACE you can stand in rather than a promise.
+   */
+  emberrock: 23,
 });
 /**
  * WHICH TILES ARE TIMBER — i.e. behave like a tree everywhere it matters:
@@ -929,6 +937,8 @@ export const SELL_BUNDLE_OVERRIDE = Object.freeze({
  * forth does not dump you at a fixed spot every time.
  */
 export const AREAS = Object.freeze({
+  /** v10 — the farlands, west of the Home Block. Raw: ground and a road. */
+  farlands: 'farlands',
   home: 'home',
   peaks: 'peaks',
   elderwatch: 'elderwatch',
@@ -937,6 +947,7 @@ export const AREA_IDS = Object.freeze(Object.keys(AREAS));
 export const AREA_NAMES = Object.freeze({
   home: 'The Home Block',
   elderwatch: 'Elderwatch',
+  farlands: 'The Farlands',
   peaks: 'The Snowfall Reaches',
 });
 
@@ -1209,6 +1220,36 @@ export const CROSSINGS = Object.freeze([
     refusal: 'the road east runs out of the Home Block and you have no reason to take it. '
       + 'Speak to the rider in the middle of the map first.',
   }),
+  /**
+   * HOME -> THE FARLANDS, bottom-left, past the Woodsman.
+   *
+   * Bruno, 2026-09-06: "near the woodsman npc, in the bottom left area of the
+   * home block map, the road to the farlands should be there ... just add path
+   * in grass near the map border and remove the stone walls to create an
+   * opening." The terrain is untouched: a road is laid along three rows of the
+   * grass that is already there, and the border's seal leaves those three rows
+   * open rather than walling them.
+   *
+   * UNGATED, unlike every other crossing in the game. This one is a door left
+   * open onto an empty room — the map behind it is raw, and there is nothing
+   * there yet to be sent for.
+   */
+  Object.freeze({
+    from: 'home', to: 'farlands', edge: 'west',
+    // SOUTH OF THE GROVE, not through it. Rows 38-40 were the obvious choice
+    // and ran straight through the Woodsman's clearing — which is ringed with
+    // exactly one door, and `15-outlanders` counts that ring. Rows 42-44 pass
+    // under it and meet the path that already comes down from the grove door.
+    x: 1, y0: 42, y1: 44,
+    landing: Object.freeze({ x: 61, y: 43 }),
+    needs: null,
+  }),
+  Object.freeze({
+    from: 'farlands', to: 'home', edge: 'east',
+    x: 62, y0: 42, y1: 44,
+    landing: Object.freeze({ x: 2, y: 43 }),
+    needs: null,
+  }),
   Object.freeze({
     from: 'peaks', to: 'home', edge: 'west',
     // x is the THRESHOLD, not a single column: an east crossing triggers at
@@ -1368,8 +1409,9 @@ export const TOWER_FLOORS = Object.freeze([
     down: Object.freeze({ x: 37, y: 33 }),
     door: Object.freeze({ x: 37, y: 32 }),
     patrols: Object.freeze([
-      Object.freeze({ rowY: 21, fromX: 29, toX: 45, stepMs: 460, sight: 4 }),
-      Object.freeze({ rowY: 27, fromX: 45, toX: 29, stepMs: 560, sight: 4 }),
+      Object.freeze({ rowY: 21, fromX: 30, toX: 44, stepMs: 460, sight: 4 }),
+      Object.freeze({ rowY: 27, fromX: 44, toX: 30, stepMs: 560, sight: 4 }),
+      Object.freeze({ rowY: 17, fromX: 33, toX: 41, stepMs: 520, sight: 4 }),
     ]),
     /** Pillars, crates and braziers — a room, not a disc of floor. */
     props: Object.freeze([
@@ -1394,6 +1436,7 @@ export const TOWER_FLOORS = Object.freeze([
       // x34-40, not x30-44: the ends of the wider beat ran through the room's
       // own rimewall, its brazier and its crate.
       Object.freeze({ rowY: 30, fromX: 34, toX: 40, stepMs: 620, sight: 3 }),
+      Object.freeze({ rowY: 20, fromX: 31, toX: 41, stepMs: 480, sight: 4 }),
     ]),
     boulders: Object.freeze([
       Object.freeze({ id: 'cistern_a', x: 32, y: 22 }),
@@ -1403,6 +1446,16 @@ export const TOWER_FLOORS = Object.freeze([
       Object.freeze({ id: 'cistern_a', x: 40, y: 22, gate: 'cistern' }),
       Object.freeze({ id: 'cistern_b', x: 40, y: 26, gate: 'cistern' }),
     ]),
+    /**
+     * THE CISTERN WALL, with the gate as its only opening.
+     *
+     * Bruno, 2026-09-06: "there should be walls around the stairs, so that by
+     * moving the rocks you open the area to access the stairs up. currently you
+     * can skip it by going directly to the stairs." Three gate tiles standing
+     * loose in an open round room are three tiles you WALK AROUND — the same
+     * hole the Hall's locked door had. The barrels were decoration.
+     */
+    wallX: 43,
     gates: Object.freeze({
       cistern: Object.freeze([
         Object.freeze({ x: 43, y: 23 }),
@@ -1426,11 +1479,14 @@ export const TOWER_FLOORS = Object.freeze([
     down: Object.freeze({ x: 45, y: 24 }),
     door: Object.freeze({ x: 44, y: 24 }),
     patrols: Object.freeze([
-      // toX 31, not 30: 30,20 is this floor's table.
-      Object.freeze({ rowY: 20, fromX: 44, toX: 31, stepMs: 500, sight: 5 }),
-      Object.freeze({ rowY: 28, fromX: 30, toX: 44, stepMs: 440, sight: 5 }),
+      // Both beats stay EAST of the arch wall at x32: a lane laid across a wall
+      // is a guard walking through it, and `geometry.mjs` refuses one.
+      Object.freeze({ rowY: 20, fromX: 44, toX: 34, stepMs: 500, sight: 5 }),
+      Object.freeze({ rowY: 28, fromX: 34, toX: 44, stepMs: 440, sight: 5 }),
+      Object.freeze({ rowY: 24, fromX: 42, toX: 34, stepMs: 580, sight: 4 }),
     ]),
-    /** The bricked arch across the way west. The Stone Hammer opens it. */
+    /** The arch wall, and the bricked span in it the Stone Hammer opens. */
+    wallX: 32,
     cracked: Object.freeze([
       Object.freeze({ x: 32, y: 23 }),
       Object.freeze({ x: 32, y: 24 }),
@@ -1464,7 +1520,7 @@ export const TOWER_FLOORS = Object.freeze([
      * suite expected while the room behind it stayed wide open. A door is only
      * a door if it is in a wall.
      */
-    shrineWallY: 22,
+    wallY: 22,
     /** The locked door through the shrine wall, and what opens it. */
     lock: Object.freeze({ x: 37, y: 22, item: 'brass_key' }),
     props: Object.freeze([
@@ -1564,11 +1620,46 @@ export const ELDERWATCH_PLATES = Object.freeze([
  * at x45, which no barrel ever stands on.
  */
 export const ELDERWATCH_GATES = Object.freeze({
+  /** The blue gate in the west wall, opened by the winch in the store. */
+  frontgate: Object.freeze([
+    Object.freeze({ x: 18, y: 24 }),
+    Object.freeze({ x: 19, y: 24 }),
+  ]),
   guardroom: Object.freeze([
     Object.freeze({ x: 46, y: 34 }),
     Object.freeze({ x: 46, y: 35 }),
   ]),
 });
+
+/**
+ * THE FRONT GATE, and the winch in the north-west store that opens it.
+ *
+ * The gate in the west wall is barred for the whole visit — that is what makes
+ * the culvert the way IN rather than a shortcut, and it stays true: you cannot
+ * throw this from outside. But a fort with a gate that never opens under any
+ * circumstances is a wall with a picture of a gate on it, and the store shed in
+ * the north-west corner of the bailey had nothing in it at all.
+ *
+ * Bruno, 2026-09-06: "there is a small rectangular building at the top left
+ * area of the precint, it should have a button to open the door in the left
+ * area of the wall." So the shed holds the winch, and throwing it opens the
+ * blue gate from the inside — the shortcut you earn by having got in the hard
+ * way, which is the oldest good idea in level design.
+ *
+ * A SWITCH IS NOT A PLATE. A plate is held while something heavy is on it and
+ * shuts the moment you step off, which is useless for a gate you want to walk
+ * out of. This latches, and the save remembers it.
+ */
+export const ELDERWATCH_SWITCHES = Object.freeze([
+  Object.freeze({
+    id: 'frontgate',
+    /** Inside the north-west store shed, on its back wall. */
+    x: 26, y: 13,
+    opens: 'frontgate',
+    prompt: 'E  throw the winch',
+    thrown: 'Somewhere across the bailey, a counterweight drops and the front gate grinds up.',
+  }),
+]);
 
 /**
  * THE WATCH. Two of them, pacing the yard on their own clocks.
@@ -1584,14 +1675,23 @@ export const ELDERWATCH_WATCH = Object.freeze([
   // so eight of each watchman's thirteen tiles were inside solid stone and the
   // yard's whole encounter had quietly stopped happening. A ring needs lanes on
   // all four sides, and two of those are vertical: hence `colX`.
+  // NO LANE ENDS FLUSH AGAINST A WALL. `watch_north` used to run x31-45, which
+  // is exactly the gap between the two store sheds — so at each end he walked
+  // into masonry and stood there facing it, which is what Bruno saw: "there is
+  // a guard in the ground floor looking at the wall." Every beat now turns a
+  // tile short of whatever is at the end of it.
   /** The west wall walk — the first thing to time, past the culvert you came in by. */
-  Object.freeze({ id: 'watch_west', colX: 21, fromY: 34, toY: 13, stepMs: 520, sight: 4 }),
+  Object.freeze({ id: 'watch_west', colX: 21, fromY: 33, toY: 14, stepMs: 520, sight: 4 }),
+  /** A second, inside him, walking the other way on his own clock. */
+  Object.freeze({ id: 'watch_west_in', colX: 24, fromY: 16, toY: 33, stepMs: 610, sight: 4 }),
   /** The north yard, in the gap between the two store sheds. */
-  Object.freeze({ id: 'watch_north', rowY: 11, fromX: 31, toX: 45, stepMs: 600, sight: 4 }),
+  Object.freeze({ id: 'watch_north', rowY: 11, fromX: 32, toX: 44, stepMs: 600, sight: 4 }),
   /** The east yard, between the north stores and the guardroom. */
-  Object.freeze({ id: 'watch_east', colX: 50, fromY: 17, toY: 30, stepMs: 460, sight: 4 }),
+  Object.freeze({ id: 'watch_east', colX: 50, fromY: 18, toY: 29, stepMs: 460, sight: 4 }),
   /** The south yard — the guardroom's own approach, and the barrels' road. */
-  Object.freeze({ id: 'watch_south', rowY: 38, fromX: 48, toX: 24, stepMs: 700, sight: 5 }),
+  Object.freeze({ id: 'watch_south', rowY: 38, fromX: 47, toX: 25, stepMs: 700, sight: 5 }),
+  /** And one across the middle of the south yard, cutting the run to the road. */
+  Object.freeze({ id: 'watch_south_in', rowY: 36, fromX: 26, toX: 35, stepMs: 540, sight: 4 }),
 ]);
 
 /**

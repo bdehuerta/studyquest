@@ -344,7 +344,7 @@ export default {
       // 224 border tiles is not something to check by walking round and
       // looking, so this counts them — and requires the gap to be exactly the
       // declared crossing, not merely SOME gap.
-      type: 'assert', label: 'every border tile is walled but the road east',
+      type: 'assert', label: 'every border tile is walled but the two roads',
       expr: `
         return import('/shared/constants.js').then((C) => {
           const w = window.__sqWorld.getWorld();
@@ -359,9 +359,16 @@ export default {
             if (!solid.has(at(0, y))) gaps.push('0,' + y);
             if (!solid.has(at(C.WORLD_W - 1, y))) gaps.push((C.WORLD_W - 1) + ',' + y);
           }
+          // TWO ROADS NOW: east to the Reaches, and west past the Woodsman to
+          // the farlands. Both are read off CROSSINGS rather than written out,
+          // so a third one cannot be added without this noticing.
           const want = [];
           for (let y = C.CROSSING.gapY; y < C.CROSSING.gapY + C.CROSSING.gapH; y += 1) {
             want.push(C.CROSSING.homeExitX + ',' + y);
+          }
+          const west = C.crossingRows('home', 'west');
+          if (west) {
+            for (let y = west.y0; y <= west.y1; y += 1) want.push('0,' + y);
           }
           if (gaps.length !== want.length) return gaps.length + ' gaps: ' + gaps.join(' ');
           return want.every((g) => gaps.indexOf(g) !== -1);
