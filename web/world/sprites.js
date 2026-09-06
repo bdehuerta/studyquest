@@ -2377,6 +2377,30 @@ const WARDEN_B = [
 ];
 
 // The Wise Man: an old man sitting, wrapped in a blanket, by a small fire.
+/**
+ * THE WINCH BASE, bolted through the floor. Stateless: the arm that says which
+ * way it has been thrown is drawn over the top by world.js, so the save decides
+ * the state and the terrain never has to be regenerated to change it.
+ */
+const LEVER_0 = [
+  'dddddddddddddddd',
+  'dddddddddddddddd',
+  'dddddddddddddddd',
+  'ddddd000000ddddd',
+  'dddd0ffffff0dddd',
+  'ddd0feeeeeef0ddd',
+  'ddd0fe0000ef0ddd',
+  'ddd0fe0jj0ef0ddd',
+  'ddd0fe0jj0ef0ddd',
+  'ddd0fe0000ef0ddd',
+  'ddd0feeeeeef0ddd',
+  'dddd0ffffff0dddd',
+  'ddddd000000ddddd',
+  'dddddddddddddddd',
+  'dddddddddddddddd',
+  'dddddddddddddddd',
+];
+
 const EMBERROCK_0 = [
   'WXWWXWWWXWWWXWWX',
   'XWWWXWWXWWXWWWXW',
@@ -2444,6 +2468,7 @@ export const SPRITES = {
     crate: makeSprite(CRATE_0, PAL, T16),
     // v10 — the farlands: cooled lava, red-black and cracked.
     emberrock: makeSprite(EMBERROCK_0, PAL, T16R),
+    lever: makeSprite(LEVER_0, PAL, T16R),
     // v2 — harvested variants, drawn in place of a depleted node.
     stump: makeSprite(TREE_TILE_0, PAL, T16), // see art.js SPRITES3.stump
     bloomstump: makeSprite(BLOOM_STUMP_0, PAL, T16),
@@ -2692,6 +2717,55 @@ const PAGE_0 = [
 export const PAGE_SPRITE = makeSprite(PAGE_0, PAL, { w: 16, h: 16, label: 'page' });
 
 /**
+ * THE WINCH ARM, up and thrown.
+ *
+ * Two frames drawn over the base tile. Up is iron with a gold grip so it reads
+ * as a thing to be used from across the store; thrown, it lies over and the
+ * grip goes dark — a lever you have already pulled should look spent, or a
+ * player will keep walking back to it.
+ */
+const LEVER_UP_0 = [
+  '.......00.......',
+  '......0oo0......',
+  '......0oo0......',
+  '......0ee0......',
+  '......0ee0......',
+  '......0ee0......',
+  '......0ee0......',
+  '......0ee0......',
+  '.....0feef0.....',
+  '.....0feef0.....',
+  '....00ffff00....',
+  '...0dddddddd0...',
+  '...0d000000d0...',
+  '....0dddddd0....',
+  '.....000000.....',
+  '................',
+];
+const LEVER_DOWN_0 = [
+  '................',
+  '................',
+  '................',
+  '................',
+  '................',
+  '................',
+  '..............0.',
+  '...........00e0.',
+  '........00eee0..',
+  '.....00eeee00...',
+  '...0feee000.....',
+  '..0dffff0.......',
+  '..0d0000d0......',
+  '...0dddd0.......',
+  '....0000........',
+  '................',
+];
+export const LEVER_FRAMES = Object.freeze([
+  makeSprite(LEVER_UP_0, PAL, { w: 16, h: 16, label: 'leverUp' }),
+  makeSprite(LEVER_DOWN_0, PAL, { w: 16, h: 16, label: 'leverDown' }),
+]);
+
+/**
  * THE HERMIT'S FIRE, with a pan on it and a crepe going.
  *
  * Two frames, so the flame moves — a still fire on a windy summit reads as a
@@ -2750,6 +2824,7 @@ export const WARDEN_FRAMES = Object.freeze([
 ]);
 
 
+
 const TILE_NAME_BY_ID = [
   'grass', 'path', 'water', 'stone', 'tree', 'sand', 'bluetree',
   'snow', 'ice', 'snowpine', 'crag',
@@ -2757,6 +2832,7 @@ const TILE_NAME_BY_ID = [
   'rimewall', 'snowroad', 'lockdoor', 'brazier', 'crate',
   // v10 — the farlands
   'emberrock',
+  'lever',
 ];
 
 /**

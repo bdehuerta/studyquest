@@ -134,6 +134,15 @@ export const TILE_TYPES = Object.freeze({
    * is enough to make it a PLACE you can stand in rather than a promise.
    */
   emberrock: 23,
+  /**
+   * A FLOOR LEVER — the winch that raises Elderwatch's front gate.
+   *
+   * Solid, because it is a thing bolted to the floor and not a decal. Its
+   * thrown/unthrown state is drawn OVER it by world.js rather than being two
+   * tiles, so the save decides which way the arm points and the terrain does
+   * not have to be rebuilt to move it.
+   */
+  lever: 24,
 });
 /**
  * WHICH TILES ARE TIMBER — i.e. behave like a tree everywhere it matters:
@@ -154,6 +163,7 @@ export const SOLID_TILES = Object.freeze([
   // Solid by default; the world lets you through when you hold the key.
   TILE_TYPES.lockdoor,
   TILE_TYPES.brazier, TILE_TYPES.crate,
+  TILE_TYPES.lever,
 ]);
 
 export const PALETTE = Object.freeze({
@@ -1683,8 +1693,14 @@ export const ELDERWATCH_GATES = Object.freeze({
 export const ELDERWATCH_SWITCHES = Object.freeze([
   Object.freeze({
     id: 'frontgate',
-    /** Inside the north-west store shed, on its back wall. */
-    x: 26, y: 13,
+    /**
+     * Inside the north-west store, in the back-left corner.
+     *
+     * NOT 26,13 — that is the tile directly inside the shed's only doorway, and
+     * the lever is SOLID, so putting it there walls the store shut with the
+     * winch inside it.
+     */
+    x: 24, y: 12,
     opens: 'frontgate',
     prompt: 'E  throw the winch',
     thrown: 'Somewhere across the bailey, a counterweight drops and the front gate grinds up.',

@@ -65,6 +65,7 @@ import {
   CODEX_SPRITE,
   PAGE_SPRITE,
   FIRE_PAN_FRAMES,
+  LEVER_FRAMES,
   WATCH_FRAMES,
   WARDEN_FRAMES,
   drawTextOutlined,
@@ -3955,6 +3956,12 @@ export function createGame(canvas) {
       for (const w of patrolList()) {
         drawables.push({ sortY: (w.y + 1) * TILE - liftAt(w.x, w.y), kind: 'w', ref: w });
       }
+      for (const sw of switchesHere()) {
+        drawables.push({
+          sortY: (sw.y + 1) * TILE - liftAt(sw.x, sw.y),
+          kind: 'v', ref: { x: sw.x, y: sw.y, thrown: switchThrown(sw.id) },
+        });
+      }
       if (worldArea === AREAS.peaks) {
         drawables.push({
           sortY: (WISE_MAN.y + 1) * TILE - liftAt(WISE_MAN.x, WISE_MAN.y),
@@ -4025,6 +4032,11 @@ export function createGame(canvas) {
       } else if (d.kind === 'o') {
         const q = mountainAt(d.ref.x, d.ref.y, -2);
         drawSprite(ctx, WISEMAN_SPRITE, q.px, q.py, S);
+      } else if (d.kind === 'v') {
+        // The winch arm over its base plate. Which way it points is the save's
+        // to say, so it is drawn here rather than baked into the tile.
+        const q = mountainAt(d.ref.x, d.ref.y, -2);
+        drawSprite(ctx, LEVER_FRAMES[d.ref.thrown ? 1 : 0], q.px, q.py, S);
       } else if (d.kind === 'f') {
         // The cookfire, drawn over its brazier tile so the pan sits on the
         // flames rather than beside them.
@@ -4185,8 +4197,23 @@ export function createGame(canvas) {
       // road east", including at a crossing the server was about to refuse — so
       // a shut road read as a broken one. Same rule as the ladder you have no
       // hooks for: it must say it is a ladder.
-      const shut = c && ((c.needs === 'herald' && !(state && state.herald && state.herald.spoken))
-        || (c.needs === 'wiseman' && !(state && state.wiseMan && state.wiseMan.spoken)));
+      /**
+       * IS THIS ROAD SHUT? Read off the crossing's own `needs`, so a gate added
+       * to CROSSINGS cannot be forgotten here.
+       *
+       * It was a hand-written list of two, and when the west road arrived
+       * carrying `wiseman_returned` nobody added a third line — so the prompt
+       * cheerfully said "travel to The Farlands" and the server then refused,
+       * which reads as the game being broken rather than the road being shut.
+       * An unknown `needs` counts as shut: better to under-promise a road that
+       * turns out to be open than to invite somebody onto one that is not.
+       */
+      const GATES = {
+        herald: (st) => !!(st && st.herald && st.herald.spoken),
+        wiseman: (st) => !!(st && st.wiseMan && st.wiseMan.spoken),
+        wiseman_returned: (st) => !!(st && st.wiseMan && st.wiseMan.returned),
+      };
+      const shut = !!(c && c.needs && !(GATES[c.needs] && GATES[c.needs](state)));
       /**
        * NAME WHERE THE ROAD GOES.
        *
@@ -4198,8 +4225,13 @@ export function createGame(canvas) {
        */
       const dest = (c && AREA_NAMES[c.to]) || 'the next region';
       const been = !!(c && state && state.areaPos && state.areaPos[c.to]);
+      const SHUT_WHY = {
+        herald: 'the road east — you have no reason to take it yet',
+        wiseman: 'the road on — the Wise Man has not told you where to go',
+        wiseman_returned: 'the road west — bring the Wise Man the Codex and the Ring first',
+      };
       const label = shut
-        ? 'the road is here, but you have no reason to walk it yet'
+        ? (SHUT_WHY[c.needs] || 'the road is here, but you have no reason to walk it yet')
         : `E  ${been ? 'go back to' : 'travel to'} ${dest}`;
       const w = textWidth(label, ts);
       const cx = clampToCanvas(Math.round((player.centerX() - camX) * S - w / 2), w);

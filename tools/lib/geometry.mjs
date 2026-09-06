@@ -22,6 +22,7 @@ import {
   TILE_TYPES, SOLID_TILES, WORLD_W, WORLD_H,
   AREAS, AREA_PUZZLES, TOWER_FLOORS, ELDERWATCH, ELDERWATCH_WATCH,
   bouldersFor, platesFor, questSitesFor, GEAR_SITES, CROSSINGS, WARDEN,
+  ELDERWATCH_SWITCHES,
 } from '../../shared/constants.js';
 import { buildElderwatch, buildTowerFloor } from '../../web/world/elderwatch.js';
 import { buildReaches } from '../../web/world/reaches.js';
@@ -201,6 +202,28 @@ for (const g of GEAR_SITES) {
     failures.push(
       `Elderwatch: the culvert cannot be reached from the west road landing — nothing can `
       + `stand at ${stand.x},${stand.y}, so the wood or the wall has closed the way in`);
+  }
+
+  /**
+   * AND THE WINCH MUST BE REACHABLE ONCE YOU ARE INSIDE.
+   *
+   * It is a SOLID tile, so it is not enough for it to be a lever with a free
+   * neighbour: put it in the store's only doorway and the neighbours are still
+   * free — one inside, one out — while the room behind it is sealed with the
+   * winch in it. What has to be true is that you can stand next to it having
+   * walked there, so this asks the flood, not the tile.
+   */
+  const inside = floodFloorMulti(bailey, { x: ELDERWATCH.doorX, y: ELDERWATCH.doorY }, []);
+  for (const sw of ELDERWATCH_SWITCHES) {
+    expectTile(bailey, `Elderwatch: the ${sw.id} winch`, sw.x, sw.y, { oneOf: [T.lever] });
+    checked += 1;
+    const canStand = [[1, 0], [-1, 0], [0, 1], [0, -1]]
+      .some(([dx, dy]) => inside.has(`${sw.x + dx},${sw.y + dy}`));
+    if (!canStand) {
+      failures.push(
+        `Elderwatch: the ${sw.id} winch at ${sw.x},${sw.y} cannot be reached — it is solid, and `
+        + 'nothing you can walk to is beside it');
+    }
   }
 }
 

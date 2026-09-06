@@ -19,7 +19,8 @@
 import {
   WORLD_W, WORLD_H, TILE_TYPES,
   crossingRows,
-  ELDERWATCH, ELDERWATCH_GATES, ELDERWATCH_PLATES, TOWER, TOWER_FLOORS,
+  ELDERWATCH, ELDERWATCH_GATES, ELDERWATCH_PLATES, ELDERWATCH_SWITCHES,
+  TOWER, TOWER_FLOORS,
 } from '../../shared/constants.js';
 
 const T = TILE_TYPES;
@@ -128,6 +129,12 @@ export function buildElderwatch(seed) {
     floor(x0 + 1, y0 + 1, x1 - 1, y1 - 1, T.rockfloor);
     put(Math.round((x0 + x1) / 2), y1, T.rockfloor);   // a doorway
   }
+  // THE WINCH, bolted to the floor of the north-west store. A solid tile, so it
+  // is a thing in the room rather than a hotspot with a caption — and placed
+  // clear of the doorway column, because a solid object in the only door walls
+  // the store shut with the winch inside it.
+  for (const sw of ELDERWATCH_SWITCHES) put(sw.x, sw.y, T.lever);
+
   // the well
   for (const [x, y] of [[26, 30], [27, 30], [26, 31], [27, 31]]) put(x, y, T.stone);
   // and a scatter of stacked stone around the yard's edges
