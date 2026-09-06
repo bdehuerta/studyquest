@@ -18,6 +18,7 @@
 import {
   CODEX_CATEGORIES, codexPage, codexProgress, hasCodex, hasCodexBook, hasRing,
 } from '../../shared/codex.js';
+import { readPages, pagesProgress } from '../../shared/pages.js';
 import { RARITIES } from '../../shared/constants.js';
 import { injectTheme, el, MONO } from './theme.js';
 
@@ -57,6 +58,30 @@ function injectStyle() {
 
 .sq-codex-count { font-size: 11px; letter-spacing: .1em; color: var(--sq-gold); }
 .sq-codex-tabcount { opacity: .62; }
+
+/* ---- the torn pages: somebody else's paper, damaged ------------------- */
+.sq-codex-sheet { padding: 12px 14px; margin-bottom: 10px; }
+.sq-codex-sheet-head {
+  display: flex; align-items: baseline; justify-content: space-between; gap: 10px;
+  margin-bottom: 8px;
+}
+.sq-codex-sheet-name { font-size: 12px; font-weight: 700; letter-spacing: .08em; color: var(--sq-gold); }
+.sq-codex-sheet-where { font-size: 10px; color: var(--sq-text-dim); font-style: italic; }
+.sq-codex-para { font-size: 11.5px; line-height: 1.65; color: var(--sq-text); margin: 0 0 7px; }
+.sq-codex-para:last-child { margin-bottom: 0; }
+/* A GAP IS NOT A BLANK. Rubbed-out text is drawn as ink that has been taken
+   off the page, so the eye reads damage rather than a missing string. */
+.sq-codex-gone {
+  color: transparent; background: var(--sq-text-dim); opacity: .34;
+  border-radius: 1px; user-select: none; letter-spacing: -.06em;
+}
+/* ...and once another page fills it, it reads as ink somebody else supplied. */
+.sq-codex-filled { color: var(--sq-gold-bright); }
+.sq-codex-lead {
+  margin-top: 9px; padding-top: 8px; border-top: 1px solid rgba(255,204,92,.20);
+  font-size: 10.5px; color: var(--sq-text-dim); line-height: 1.6;
+}
+.sq-codex-whole { font-size: 10px; letter-spacing: .12em; color: var(--sq-good); }
 `;
   document.head.appendChild(s);
 }
@@ -102,6 +127,14 @@ export function createCodex(overlay) {
   function renderTabs() {
     tabs.textContent = '';
     const prog = codexProgress(state || {});
+    const pg = pagesProgress(state || {});
+    {
+      const b = el('button', `sq-theme-tab${tab === 'page' ? ' sq-theme-on' : ''}`);
+      b.append(el('span', null, 'Pages'),
+        el('span', 'sq-codex-tabcount', ` ${pg.known}/${pg.total}`));
+      b.addEventListener('click', () => { tab = 'page'; render(); });
+      tabs.appendChild(b);
+    }
     for (const c of CODEX_CATEGORIES) {
       const per = prog.per[c.id] || { known: 0, total: 0 };
       const b = el('button', `sq-theme-tab${c.id === tab ? ' sq-theme-on' : ''}`);
@@ -112,11 +145,61 @@ export function createCodex(overlay) {
     }
   }
 
+  /**
+   * THE PAGES TAB. Not a grid of cards — sheets of somebody else's paper, read
+   * top to bottom, with the damage shown as damage.
+   */
+  function renderPages() {
+    const sheets = readPages(state || {});
+    body.appendChild(el('div', 'sq-codex-blurb',
+      'Paper you were not meant to keep. What is rubbed out of one page is often written '
+      + 'plainly on another — carry both and the ink comes back.'));
+    if (!sheets.length) {
+      body.appendChild(el('div', 'sq-theme-empty',
+        'No pages yet. They turn up where somebody kept records they should have burnt.'));
+      return;
+    }
+    for (const sheet of sheets) {
+      const card = el('div', 'sq-theme-card sq-codex-sheet');
+      const head2 = el('div', 'sq-codex-sheet-head');
+      head2.appendChild(el('div', 'sq-codex-sheet-name', sheet.name));
+      head2.appendChild(el('div', sheet.whole ? 'sq-codex-whole' : 'sq-codex-sheet-where',
+        sheet.whole ? 'COMPLETE' : `${sheet.filled}/${sheet.gaps} restored`));
+      card.appendChild(head2);
+      card.appendChild(el('div', 'sq-codex-sheet-where', `found: ${sheet.where}`));
+      for (const para of sheet.paragraphs) {
+        const p = el('p', 'sq-codex-para');
+        for (const seg of para) {
+          if (!seg.gap) { p.appendChild(document.createTextNode(seg.text)); continue; }
+          p.appendChild(el('span', seg.filled ? 'sq-codex-filled' : 'sq-codex-gone', seg.text));
+        }
+        card.appendChild(p);
+      }
+      // WHAT WOULD FILL IT. A hole you cannot name is not a lead; naming the
+      // page turns the damage into somewhere to go.
+      if (!sheet.whole) {
+        const names = [...new Set(sheet.missing.map((m) => m.byName).filter(Boolean))];
+        card.appendChild(el('div', 'sq-codex-lead',
+          names.length
+            ? `The rest of it is written in: ${names.join('; ')}.`
+            : 'The rest of it is written somewhere you have not been.'));
+      }
+      body.appendChild(card);
+    }
+  }
+
   function render() {
     if (!open) return;
     const prog = codexProgress(state || {});
-    count.textContent = `${prog.known}/${prog.total} known`;
+    const pg = pagesProgress(state || {});
+    count.textContent = `${prog.known}/${prog.total} known · ${pg.known}/${pg.total} pages`;
     renderTabs();
+
+    if (tab === 'page') {
+      body.textContent = '';
+      renderPages();
+      return;
+    }
 
     const cat = CODEX_CATEGORIES.find((c) => c.id === tab) || CODEX_CATEGORIES[0];
     const page = codexPage(state || {}, cat.id);
@@ -197,6 +280,8 @@ export function createCodex(overlay) {
     setOnDenied: (fn) => { onDenied = fn; },
     /** Test seam: which section is showing, and how full it is. */
     page: () => codexPage(state || {}, tab),
+    /** Test seam: the torn pages, and how much of them is readable. */
+    pages: () => ({ progress: pagesProgress(state || {}), sheets: readPages(state || {}) }),
     /** Test seam: the whole tally, without reading the DOM. */
     progress: () => codexProgress(state || {}),
     /** Test seam: how many entry cards are actually on screen, and how many are blanks. */

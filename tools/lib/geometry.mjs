@@ -25,6 +25,8 @@ import {
 } from '../../shared/constants.js';
 import { buildElderwatch, buildTowerFloor } from '../../web/world/elderwatch.js';
 import { buildReaches } from '../../web/world/reaches.js';
+import { buildFarlands } from '../../web/world/farlands.js';
+import { pagesContract, CODEX_PAGE_IDS } from '../../shared/pages.js';
 
 const SOLID = new Set(SOLID_TILES);
 const T = TILE_TYPES;
@@ -202,6 +204,32 @@ for (const g of GEAR_SITES) {
   }
 }
 
+// ── the Farlands ─────────────────────────────────────────────────────────────
+// Raw, but not exempt: the two pages lie on the road in, and a page on a crag
+// is a page you cannot pick up.
+{
+  const far = buildFarlands(1);
+  for (const q of questSitesFor(AREAS.farlands, 0)) {
+    expectTile(far, `the Farlands: the ${q.item} lies`, q.x, q.y);
+  }
+  // ...and the way home has to be reachable from where you land, because the
+  // road is the only feature on the map. Bruno walked up the east wall to row
+  // 10 looking for it and found red ground and a refusal.
+  checked += 1;
+  const land = CROSSINGS.find((c) => c.to === AREAS.farlands).landing;
+  const back = CROSSINGS.find((c) => c.from === AREAS.farlands);
+  const reach = floodFloorMulti(far, land, []);
+  if (!reach.has(`${WORLD_W - 1},${back.y0 + 1}`)) {
+    failures.push('the Farlands: the road home cannot be reached from where you land');
+  }
+  for (const q of questSitesFor(AREAS.farlands, 0)) {
+    checked += 1;
+    if (!reach.has(`${q.x},${q.y}`)) {
+      failures.push(`the Farlands: the ${q.item} at ${q.x},${q.y} cannot be walked to`);
+    }
+  }
+}
+
 // ── each floor of the Keep ───────────────────────────────────────────────────
 for (const f of TOWER_FLOORS) {
   const map = buildTowerFloor(f.n);
@@ -372,6 +400,20 @@ function walkReaches(gear) {
       `the Reaches: the road east at ${east.x},${east.y0 + 1} cannot be reached even with `
       + 'every piece of gear — the mountain is a dead end');
   }
+}
+
+/* ============================================== the Codex's torn pages
+ *
+ * Not geometry, but the same kind of contract and the same failure mode: a gap
+ * pointing at a page that does not exist can never be filled, and a gap that
+ * fills itself is a redaction you can read the moment you find it. Both are
+ * silent — the page renders, nothing throws, and the mechanic is just quietly
+ * not there. See shared/pages.js.
+ */
+{
+  const problems = pagesContract();
+  checked += CODEX_PAGE_IDS.length;
+  for (const p of problems) failures.push(`codex pages: ${p}`);
 }
 
 // ── verdict ──────────────────────────────────────────────────────────────────

@@ -2665,6 +2665,33 @@ const CODEX_0 = [
 export const CODEX_SPRITE = makeSprite(CODEX_0, PAL, { w: 16, h: 16, label: 'codex' });
 
 /**
+ * A LOOSE PAGE, weighted down with a stone.
+ *
+ * Half-curled, corner gone. It has to read as PAPER from across a map that is
+ * otherwise bare red rock — drawn as a gear cache it was a crate, and the two
+ * things worth finding in the Farlands would have looked like scenery.
+ */
+const PAGE_0 = [
+  '................',
+  '................',
+  '.....00000......',
+  '....0mmmm00.....',
+  '...0mmmmmm90....',
+  '...0m00mmm90....',
+  '..0mmmmm0mm90...',
+  '..0m0mmmmmm90...',
+  '..0mmmm0mmm90...',
+  '..0m0mmmmmm90...',
+  '..0mmmmm00m90...',
+  '..0m0mmmmmm90...',
+  '...0mmmmmm90....',
+  '....0999990.....',
+  '.....0ddd0......',
+  '......000.......',
+];
+export const PAGE_SPRITE = makeSprite(PAGE_0, PAL, { w: 16, h: 16, label: 'page' });
+
+/**
  * THE HERMIT'S FIRE, with a pan on it and a crepe going.
  *
  * Two frames, so the flame moves — a still fire on a windy summit reads as a

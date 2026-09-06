@@ -1456,6 +1456,57 @@ the halo also covers, and it failed — correctly. The test was wrong, not the
 rule.
 
 ---
+## DONE 2026-09-06 (4) — the Codex's other half: pages you have to work out
+
+Bruno, choosing the Farlands chapter: *"3 [Ranon gets there first], and we need
+to focus on what the codex does. it is like a pokedex of items but also as a
+journal which during quests you find information in pages which are rubbed out
+or broken, and you figure it out bit by bit."*
+
+### TWO HALVES THAT DO OPPOSITE JOBS
+
+The CATALOGUE (`shared/codex.js`) records what you have MET. It fills itself in,
+it is never wrong, and a blank is labelled `??????`. It rewards going places.
+
+The PAGES (`shared/pages.js`) record what somebody else wrote and did not want
+read. They arrive DAMAGED, and — this is the whole mechanic — **a gap is never
+filled by the page it is on**. It is filled by a DIFFERENT page that happens to
+name the same thing. The Elderwatch ledger says the garrison was staffed "by
+order of ████"; the requisition, found a region away, is signed. Carry both and
+the ink comes back, retroactively, in the page you found first.
+
+That is why the redaction is worth having rather than being a lore dump with
+asterisks in it: a page you cannot read yet is a QUESTION WITH A SHAPE, and the
+shape tells you where to go. The panel names the page that would fill each hole,
+because "you are missing something" is not a shape.
+
+A self-filling gap would make the ink a typographic effect, and a gap pointing
+at a page that does not exist can never be filled — both silent, both exactly
+the failure mode this project keeps finding. `pagesContract()` refuses them and
+runs in `check.sh` beside the map contracts. Verified it bites by pointing a gap
+at its own page.
+
+### FOUR PAGES, AND THEY INTERLOCK BOTH WAYS
+
+`posting_orders` and `seal_impression` come out of the Hall's chest with the
+Codex and the Ring. `burnt_requisition` and `levy_roll` lie on the Farlands
+road. Two gaps point east, two point west, so neither region reads whole alone:
+you learn the garrison was made of men with no people in the farlands — and only
+later, from the requisition, that *he did not find men with no people; he made
+them*. And the Levy Roll turns the Standard from stolen into LODGED, against a
+debt forty years past, signed by Ranon as Lord Steward.
+
+Pages are QUEST ITEMS, not a new kind of thing: they ride the machinery that
+exists — lifted off the ground by `questSitesFor`, filed under Relics,
+catalogued — so the next map has one fewer concept to learn.
+
+### AND THE FARLANDS HAS ITS FIRST TWO THINGS IN IT
+
+Both on the road, deliberately, while the region is otherwise a corridor. The
+chapter proper — Ranon's administration got here first, the twelve families kept
+posted apart — is next.
+
+---
 ## DONE 2026-09-06 (3) — the barriers that gated nothing, and a fourth map
 
 A long list, played out of the app rather than read out of the code.

@@ -683,5 +683,65 @@ export default {
       type: 'api', route: '/api/travel', body: { x: 0, y: 43 }, expectOk: true,
       label: 'and now the road west is open', path: 'area', equals: 'farlands',
     },
+
+    { type: 'note', text: 'THE TORN PAGES: what is rubbed out of one is written on another.' },
+    {
+      type: 'eval', label: 'pull it into the page',
+      expr: "return window.sqMenu.reloadState().then(() => 'reloaded');",
+    },
+    { type: 'wait', ms: 600 },
+    {
+      // TWO PAGES IN, AND BOTH HAVE HOLES. The Elderwatch paper came out of the
+      // chest with the Codex and the Ring; what it will not say is written in
+      // the farlands, which is the whole mechanic.
+      type: 'assert', label: 'the Codex holds two damaged pages',
+      expr: `
+        const p = window.__sqPanels.codex.pages();
+        return JSON.stringify([p.progress.known, p.progress.total, p.progress.filled, p.progress.gaps]);
+      `,
+      equals: '[2,4,1,3]',
+    },
+    {
+      type: 'assert', label: 'and it names the page that would fill the hole',
+      expr: `
+        const s = window.__sqPanels.codex.pages().sheets.find((x) => x.id === 'posting_orders');
+        return !!(s && !s.whole && s.missing.some((m) => m.byName));
+      `,
+      equals: true,
+    },
+    ...[['burnt_requisition', 40, 43], ['levy_roll', 20, 43]].flatMap(([item, x, y]) => [
+      { type: 'api', route: '/api/player/move', body: { x, y }, expectOk: true,
+        label: `walk to the ${item}` },
+      { type: 'api', route: '/api/quest/take', body: { item, x, y }, expectOk: true,
+        label: `pick it up`, path: 'item', equals: item },
+    ]),
+    {
+      type: 'eval', label: 'pull it into the page',
+      expr: "return window.sqMenu.reloadState().then(() => 'reloaded');",
+    },
+    { type: 'wait', ms: 600 },
+    {
+      // AND THE ELDERWATCH PAGES BECOME READABLE, retroactively — that is the
+      // payoff, and it is why a gap may never be filled by its own page.
+      type: 'assert', label: 'four pages, and every gap in all of them is restored',
+      expr: `
+        const p = window.__sqPanels.codex.pages();
+        return JSON.stringify([p.progress.known, p.progress.filled, p.progress.gaps]);
+      `,
+      equals: '[4,7,7]',
+    },
+    {
+      type: 'assert', label: 'the posting orders read whole now',
+      expr: `
+        const s = window.__sqPanels.codex.pages().sheets.find((x) => x.id === 'posting_orders');
+        const text = s.paragraphs.map((para) => para.map((g) => g.text).join('')).join(' ');
+        return s.whole && /they are to be made/.test(text);
+      `,
+      equals: true,
+    },
+    { type: 'eval', label: 'open the Codex on its Pages tab',
+      expr: "window.__sqPanels.codex.open(); window.__sqPanels.codex.selectTab('page'); return 'ok';" },
+    { type: 'wait', ms: 500 },
+    { type: 'screenshot', file: 'v10-codex-pages.png' },
   ],
 };

@@ -621,6 +621,31 @@ export const QUEST_ITEMS = Object.freeze({
       + 'managed. Hold it against a written page and the writing changes its mind.',
   }),
   /**
+   * TWO PAGES OUT OF THE FARLANDS, and the reason the Codex's damaged half
+   * works at all: what is rubbed out of the Elderwatch paper is written plainly
+   * on these, and what is scraped off these is written plainly back there.
+   *
+   * They are quest ITEMS rather than a kind of their own, so they travel the
+   * machinery that already exists — lifted off the ground, filed under Relics,
+   * catalogued. See shared/pages.js.
+   */
+  burnt_requisition: Object.freeze({
+    id: 'burnt_requisition',
+    name: 'A Burnt Requisition',
+    symbol: '☰',
+    color: '#c98a4a',
+    desc: 'Charred to the fold. An order for grain, and under it a second order that is '
+      + 'not about grain at all.',
+  }),
+  levy_roll: Object.freeze({
+    id: 'levy_roll',
+    name: 'The Levy Roll',
+    symbol: '☷',
+    color: '#b8a06a',
+    desc: 'Twelve names down the left, and a column beside them scraped back to the vellum '
+      + 'and written over. The knife did not quite reach the bottom of it.',
+  }),
+  /**
    * THE CODEX. Behind the barred door of the Elderwatch guardroom, which is
    * the one lock in the fort that opens onto knowledge rather than a way on.
    *
@@ -1751,6 +1776,24 @@ export function platesFor(area) {
  */
 export const QUEST_SITES = Object.freeze({
   /**
+   * THE FARLANDS' FIRST TWO THINGS, both on the road in.
+   *
+   * Ranon's administration got here first — that is the chapter — and what it
+   * left behind is paperwork. Placing them ON the road is deliberate while the
+   * region is otherwise empty: the corridor is the only thing you can find, so
+   * it had better have something in it.
+   */
+  farlands: Object.freeze([
+    Object.freeze({
+      item: 'burnt_requisition', x: 40, y: 43, xp: 'requisition_taken',
+      found: 'A REQUISITION, burnt along one edge.',
+    }),
+    Object.freeze({
+      item: 'levy_roll', x: 20, y: 43, xp: 'levy_roll_taken',
+      found: 'THE LEVY ROLL of the twelve families.',
+    }),
+  ]),
+  /**
    * Elderwatch's GROUND floor has one, in the guardroom: the Codex.
    *
    * The Brass Key and the Standard used to lie out here too, in a flat keep at
@@ -1952,6 +1995,9 @@ export const QUEST_XP = Object.freeze({
   // ELDERWATCH. Getting in is worth something; getting the Standard out is worth
   // the rest of the story.
   culvert_broken: 150,
+  /** The Farlands' two pages. Paper is worth what it lets you read. */
+  requisition_taken: 260,
+  levy_roll_taken: 340,
   /** The guardroom's barrels, and the journal behind them. */
   codex_taken: 220,
   /** The chest in the Hall. The reveal, and the thing that opens the journal. */

@@ -63,6 +63,7 @@ import {
   GEAR_SPRITE,
   STANDARD_SPRITE,
   CODEX_SPRITE,
+  PAGE_SPRITE,
   FIRE_PAN_FRAMES,
   WATCH_FRAMES,
   WARDEN_FRAMES,
@@ -3986,6 +3987,8 @@ export function createGame(canvas) {
         const QUEST_SPRITE = {
           ashen_standard: STANDARD_SPRITE,
           codex: CODEX_SPRITE,
+          burnt_requisition: PAGE_SPRITE,
+          levy_roll: PAGE_SPRITE,
         };
         drawSprite(ctx, QUEST_SPRITE[d.ref.item] || GEAR_SPRITE, p2.px, p2.py, S);
       } else if (d.kind === 'w') {
