@@ -1230,9 +1230,12 @@ export const CROSSINGS = Object.freeze([
    * grass that is already there, and the border's seal leaves those three rows
    * open rather than walling them.
    *
-   * UNGATED, unlike every other crossing in the game. This one is a door left
-   * open onto an empty room — the map behind it is raw, and there is nothing
-   * there yet to be sent for.
+   * GATED ON THE WISE MAN'S SECOND TELLING. It was open from the moment the map
+   * existed, which made it the one journey in this game nobody had to be sent
+   * on — every other crossing waits for somebody: the Herald opens the east
+   * road, the Wise Man opens Elderwatch. He asked for the ledger and the signet
+   * and asked you not to go west without him, and this is where that stops
+   * being a line of dialogue.
    */
   Object.freeze({
     from: 'home', to: 'farlands', edge: 'west',
@@ -1242,7 +1245,9 @@ export const CROSSINGS = Object.freeze([
     // under it and meet the path that already comes down from the grove door.
     x: 1, y0: 42, y1: 44,
     landing: Object.freeze({ x: 61, y: 43 }),
-    needs: null,
+    needs: 'wiseman_returned',
+    refusal: 'the road runs west into burnt country, and the Wise Man asked you not to take '
+      + 'it without him. Bring him the Codex and the Ring first.',
   }),
   Object.freeze({
     from: 'farlands', to: 'home', edge: 'east',
@@ -1875,10 +1880,59 @@ export const WISE_MAN_DIALOGUE = Object.freeze({
       + 'good. You are going to free it by giving twelve angry families a reason."',
     '"Go east from the pass below. Elderwatch is at the end of the old road. And when the '
       + 'garrison asks what you are, tell them the truth — they will not believe it."',
+    'You are at the mouth of the cave when he speaks again, and his voice has changed.',
+    '"One more thing, and it is the thing that matters. A garrison does not forget on its '
+      + 'own. Somebody taught that one to. There will be PAPER — a ledger, a book of '
+      + 'postings, whatever they keep — and there will be a SIGNET, because a man who '
+      + 'writes forty years of orders signs them."',
+    '"Bring me both. Not the standard: the standard is only cloth, and I know already what '
+      + 'it is worth. Bring me the book and the ring."',
+    '"And do not go west without me. Whatever you find out there, I would rather you found '
+      + 'it knowing what I know."',
   ]),
   objective: 'Travel east to Elderwatch and take back the Ashen Standard from the Hall of '
-    + 'Keeping. Return it to the tribes of the farlands, and they will raise the Levy '
-    + 'against Ranon.',
+    + 'Keeping — and find the ledger and the signet the Wise Man asked for. Bring the '
+    + 'Codex and the Ring back to him on the mountain before you go west.',
+});
+
+/**
+ * WHAT HE SAYS WHEN YOU COME BACK WITH THE CODEX AND THE RING.
+ *
+ * The second telling, and the one that opens the road west. Bruno, 2026-09-06:
+ * "the wise man tells you to come to him after you get the codex and the ring
+ * in elderwatch, and when you meet him after grabbing the codex and the ring,
+ * he tells you to travel to the farlands."
+ *
+ * It exists because the farlands were reachable the moment the map was built —
+ * an open door on an empty room. A journey should be permitted by somebody, the
+ * way every other crossing in this game is: the Herald opens the east road and
+ * the Wise Man opened Elderwatch. Now he opens the west one too, and he opens
+ * it on EVIDENCE rather than on having been asked nicely.
+ */
+export const WISE_MAN_RETURN_DIALOGUE = Object.freeze({
+  name: 'The Wise Man of the Mountain',
+  lines: Object.freeze([
+    'He takes the Codex before you have got your breath back, and holds the ring against '
+      + 'the page the way you did in the Hall, without being shown how.',
+    'He reads for a long time. The fire gets low and neither of you sees to it.',
+    '"Forty years of postings," he says at last. "In one hand. He was not hiding it. He was '
+      + 'ADMINISTERING it — there is a difference, and the difference is that he expected to '
+      + 'be doing it forever."',
+    '"I thought the old King said nothing because he was afraid. He said nothing because by '
+      + 'the time he understood, every man who might have carried the message had already '
+      + 'been posted somewhere cold."',
+    'He closes the book and gives it back. "Keep it. It is yours now, and it writes itself; '
+      + 'you will want the pages you have not filled."',
+    '"Now. West. Past the Home Block, past the woodsman, and out onto the burnt ground — the '
+      + 'FARLANDS. That is where the twelve families went when the border stopped meaning '
+      + 'anything, and it is not the green country the songs give it."',
+    '"Take the standard. Take the ring especially — show them the ring and they will not '
+      + 'need the rest of it explained."',
+    'He turns back to the fire. "And be careful with that ring. I have been looking at it '
+      + 'for an hour and I cannot tell you why."',
+  ]),
+  objective: 'Travel WEST, past the Home Block and out onto the burnt ground of the '
+    + 'Farlands, and find the twelve families. Show them the Ring.',
 });
 
 /** Snow, ice and bare rock — the Reaches' own ground. */
@@ -1915,6 +1969,12 @@ export const QUEST_XP = Object.freeze({
   // here rather than added later so the number the Herald's quest is worth is
   // written down in one place from the beginning.
   wise_man_found: 400,
+  /**
+   * THE SECOND TELLING. Worth more than the first: the first was a conversation
+   * you climbed a mountain for, this one is a conversation you climbed a
+   * mountain, crossed a moor, robbed a fort and climbed a tower for.
+   */
+  wise_man_returned: 500,
 });
 
 /**

@@ -57,9 +57,29 @@ export function buildFarlands(seed) {
   //         Walling first and carving second would work; carving first and
   //         walling second would seal the road — the ordering bug the grove's
   //         door taught and the Home Block's east road had to relearn.
+  //
+  //         AND IT IS BIG, because it is the only thing on this map. Bruno
+  //         crossed over, walked up the east wall to row 10 — where the HOME
+  //         BLOCK's road is — and found nothing but red ground and a refusal.
+  //         He was not stuck; he was lost, which on a featureless map is the
+  //         same experience. One tile of path thirteen tiles long was a way out
+  //         you had to already know about.
+  //
+  //         So: the full width of the gap, running most of the way across the
+  //         map, with a walled shoulder either side of it. Until there is
+  //         something else here, the road IS the map, and you can see it from
+  //         anywhere along the east wall.
   const road = crossingRows('farlands', 'east');
-  const roadY = road ? road.y0 + 1 : 39;
-  for (let x = WORLD_W - 1; x >= WORLD_W - 14; x -= 1) put(x, roadY, T.path);
+  const y0 = road ? road.y0 : 42;
+  const y1 = road ? road.y1 : 44;
+  for (let y = y0 - 1; y <= y1 + 1; y += 1) {
+    for (let x = WORLD_W - 1; x >= 12; x -= 1) {
+      put(x, y, (y < y0 || y > y1) ? T.crag : T.path);
+    }
+  }
+  // A waymarker where the road gives out, so the far end reads as unfinished
+  // rather than as somewhere you failed to find the rest of.
+  for (const [dx, dy] of [[0, -1], [0, 1]]) put(12 + dx, y0 + 1 + dy, T.crag);
 
   // ---- 4. seal it, leaving the road east open. Rock, not trees: nothing grows
   //         here.

@@ -647,5 +647,41 @@ export default {
       type: 'api', route: '/api/state', label: 'and the 400 xp the Herald reserved for him lands',
       path: 'state.questsDone', truthy: true,
     },
+
+    { type: 'note', text: 'AND HE ASKS FOR TWO THINGS, AND THE ROAD WEST WAITS ON THEM.' },
+    // Off the mountain, to try the west road. The farlands were reachable the
+    // moment the map existed — the one journey nobody had to be sent on.
+    { type: 'api', route: '/api/player/move', body: { x: 1, y: 42 }, expectOk: true, label: 'to the pass' },
+    {
+      type: 'api', route: '/api/travel', body: { x: 1, y: 42 }, expectOk: true,
+      label: 'down to the Home Block', path: 'area', equals: 'home',
+    },
+    { type: 'api', route: '/api/player/move', body: { x: 0, y: 43 }, expectOk: true, label: 'to the west road' },
+    {
+      type: 'api', route: '/api/travel', body: { x: 0, y: 43 }, expectOk: false,
+      label: 'and it refuses: he asked you not to go west without him',
+    },
+    {
+      type: 'api', route: '/api/dev/grant', body: { questItems: { codex: 1, ranons_ring: 1 } },
+      expectOk: true, label: 'come back from Elderwatch with the Codex and the Ring',
+    },
+    { type: 'api', route: '/api/player/move', body: { x: 63, y: 10 }, expectOk: true, label: 'to the east road' },
+    {
+      type: 'api', route: '/api/travel', body: { x: 63, y: 10 }, expectOk: true,
+      label: 'back up the mountain', path: 'area', equals: 'peaks',
+    },
+    {
+      type: 'api', route: '/api/npc/talk', body: { vendor: 'wiseman', px: 58, py: 3 }, expectOk: true,
+      label: 'he reads the Codex — the second telling', path: 'dialogue.objective', truthy: true,
+    },
+    { type: 'api', route: '/api/player/move', body: { x: 1, y: 42 }, expectOk: true, label: 'down again' },
+    { type: 'api', route: '/api/travel', body: { x: 1, y: 42 }, expectOk: true, label: 'to the Home Block' },
+    { type: 'api', route: '/api/player/move', body: { x: 0, y: 43 }, expectOk: true, label: 'to the west road' },
+    {
+      // THE ROAD OPENS BECAUSE SOMEBODY OPENED IT, which is how every other
+      // crossing in this game works.
+      type: 'api', route: '/api/travel', body: { x: 0, y: 43 }, expectOk: true,
+      label: 'and now the road west is open', path: 'area', equals: 'farlands',
+    },
   ],
 };

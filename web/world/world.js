@@ -22,6 +22,7 @@ import {
   REACHES_GEAR, GEAR_SITES,
   EAST_ROAD, AREA_PUZZLES, bouldersFor, platesFor,
   ELDERWATCH, ELDERWATCH_WATCH, crossingAt, crossingRows, questSitesFor, DOOR_KEYS, QUEST_ITEMS,
+  AREA_NAMES,
   CHEESECAKE_HERMIT, ELDERWATCH_SWITCHES,
   TOWER, TOWER_FLOORS,
   WARDEN, WISE_CAVE,
@@ -4157,9 +4158,20 @@ export function createGame(canvas) {
       // hooks for: it must say it is a ladder.
       const shut = c && ((c.needs === 'herald' && !(state && state.herald && state.herald.spoken))
         || (c.needs === 'wiseman' && !(state && state.wiseMan && state.wiseMan.spoken)));
+      /**
+       * NAME WHERE THE ROAD GOES.
+       *
+       * It used to say "take the road east" / "go back west" off the EDGE, so
+       * the brand new road out of the Home Block read as "go back west" to a
+       * map you had never seen. The edge is not the interesting fact; the
+       * destination is. "Go back" only when you have actually been there —
+       * `areaPos` remembers every map you have stood on.
+       */
+      const dest = (c && AREA_NAMES[c.to]) || 'the next region';
+      const been = !!(c && state && state.areaPos && state.areaPos[c.to]);
       const label = shut
         ? 'the road is here, but you have no reason to walk it yet'
-        : (c && c.edge === 'east' ? 'E  take the road east' : 'E  go back west');
+        : `E  ${been ? 'go back to' : 'travel to'} ${dest}`;
       const w = textWidth(label, ts);
       const cx = clampToCanvas(Math.round((player.centerX() - camX) * S - w / 2), w);
       const cy = Math.round((player.py - camY) * S) - 16 * S;

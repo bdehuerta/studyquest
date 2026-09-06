@@ -25,6 +25,7 @@ import {
   CROSSING,
   WISE_MAN,
   WISE_MAN_DIALOGUE,
+  WISE_MAN_RETURN_DIALOGUE,
   QUEST_ITEM_IDS,
   VENDOR_LOCKS,
   QUEST_XP,
@@ -2880,6 +2881,19 @@ function routeDevGrant(b, state, save) {
 
   // --- v7: the mountain, for testing what is behind it. Every piece of gear,
   //     and the Warden already broken.
+  // --- v10: quest items, for testing what waits on them. The Codex and the
+  //     Ring gate the Wise Man's second telling and the road west, and walking
+  //     the whole of Elderwatch to reach that state in every suite that needs
+  //     it would be a test of Elderwatch, not of the thing under test.
+  if (isObj(b.questItems)) {
+    const items = questItemsOf(state);
+    for (const [id, qty] of Object.entries(b.questItems)) {
+      if (!QUEST_ITEM_DEFS[id]) continue;
+      const n = Math.max(0, Math.round(num(qty) ?? 0));
+      if (n > 0) items[id] = n; else delete items[id];
+    }
+    done.push(`quest items ${Object.keys(b.questItems).join(', ')}`);
+  }
   if (b.reachesGear === true) {
     const r = reachesOf(state);
     for (const id of Object.keys(REACHES_GEAR)) if (r.gear.indexOf(id) === -1) r.gear.push(id);
@@ -3120,7 +3134,10 @@ function areaOf(state) {
 }
 
 function wiseManOf(state) {
-  if (!isObj(state.wiseMan)) state.wiseMan = { found: false, spoken: false };
+  if (!isObj(state.wiseMan)) state.wiseMan = { found: false, spoken: false, returned: false };
+  // `returned` is v10: he has read the Codex and opened the road west. Seeded
+  // lazily so a save from before the second telling existed walks into it.
+  if (typeof state.wiseMan.returned !== 'boolean') state.wiseMan.returned = false;
   return state.wiseMan;
 }
 
@@ -3149,6 +3166,13 @@ function routeTravel(b, state, save) {
     return fail(crossing.refusal);
   }
   if (crossing.needs === 'wiseman' && !(isObj(state.wiseMan) && state.wiseMan.spoken)) {
+    return fail(crossing.refusal);
+  }
+  // THE ROAD WEST is the Wise Man's second telling: he asked for the Codex and
+  // the Ring and asked you not to go west without him, and this is where that
+  // request stops being a line of dialogue.
+  if (crossing.needs === 'wiseman_returned'
+      && !(isObj(state.wiseMan) && state.wiseMan.returned)) {
     return fail(crossing.refusal);
   }
 
@@ -3721,22 +3745,69 @@ function routeWiseManTalk(b, state, save) {
     xp = completeQuest(state, 'wise_man_found', 'the Wise Man of the mountain has been found');
     pushLog(state, `New objective — ${WISE_MAN_DIALOGUE.objective}`, 'quest');
     save(state);
+    return ok({
+      state,
+      vendor: 'wiseman',
+      dialogue: {
+        stage: 'opening',
+        name: WISE_MAN_DIALOGUE.name,
+        lines: WISE_MAN_DIALOGUE.lines.slice(),
+        objective: WISE_MAN_DIALOGUE.objective,
+      },
+      unlocked: true,
+      justOpened: false,
+      xp,
+    });
   }
+
+  /**
+   * THE SECOND TELLING, AND IT IS WHAT OPENS THE ROAD WEST.
+   *
+   * He asked for the ledger and the signet, not the standard — so the check is
+   * the Codex and the Ring, exactly the two things he named. Bringing them back
+   * is what earns the farlands: the map was reachable the moment it was built,
+   * which made it the one journey in this game nobody had to be sent on.
+   */
+  const items = questItemsOf(state);
+  const hasBoth = (num(items.codex) ?? 0) > 0 && (num(items.ranons_ring) ?? 0) > 0;
+  if (hasBoth && !w.returned) {
+    w.returned = true;
+    xp = completeQuest(state, 'wise_man_returned',
+      'the Wise Man has read the Codex, and the road west is open');
+    pushLog(state, `New objective — ${WISE_MAN_RETURN_DIALOGUE.objective}`, 'quest');
+    save(state);
+    return ok({
+      state,
+      vendor: 'wiseman',
+      dialogue: {
+        stage: 'opening',
+        name: WISE_MAN_RETURN_DIALOGUE.name,
+        lines: WISE_MAN_RETURN_DIALOGUE.lines.slice(),
+        objective: WISE_MAN_RETURN_DIALOGUE.objective,
+      },
+      unlocked: true,
+      justOpened: false,
+      xp,
+    });
+  }
+
+  // Everything after that is him repeating himself, which is what he is for.
+  const lines = w.returned
+    ? [
+      '"West," he says, without turning round. "Past the Home Block, past the woodsman, '
+        + 'out onto the burnt ground."',
+      '"Show them the ring. And do not lose it before you get there."',
+    ]
+    : [
+      '"Elderwatch," he says, without turning round. "The old road east, past the pass. '
+        + 'The Hall of Keeping."',
+      '"The standard, yes. But the BOOK and the RING, and bring those to me. It will '
+        + 'still be there tomorrow — so will the garrison."',
+    ];
   return ok({
     state,
     vendor: 'wiseman',
-    dialogue: {
-      stage: first ? 'opening' : 'open',
-      name: WISE_MAN_DIALOGUE.name,
-      lines: first
-        ? WISE_MAN_DIALOGUE.lines.slice()
-        : [
-          '"Elderwatch," he says, without turning round. "The old road east, past the pass. '
-            + 'The Hall of Keeping."',
-          '"It will still be there tomorrow. So will the garrison."',
-        ],
-      objective: first ? WISE_MAN_DIALOGUE.objective : null,
-    },
+    dialogue: { stage: 'open', name: WISE_MAN_DIALOGUE.name, lines, objective: null },
     unlocked: true,
     justOpened: false,
     xp,

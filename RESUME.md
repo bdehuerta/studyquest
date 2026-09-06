@@ -3,41 +3,51 @@
 Cold-start here. Run `node server.js` (dev, :7777) or `open dist/StudyQuest.app` (real app).
 `./build-app.sh` rebuilds the bundle. Saves: `~/Library/Application Support/StudyQuest/Slot N/`.
 
+**COMMITTING IS NOT SHIPPING.** The `.app` is what Bruno plays, and a rebuild does
+NOT restart a window he already has open. Finish every change with
+`./build-app.sh`, then tell him to quit (⌘Q) and reopen. A whole session's fixes
+once landed in git and never in the bundle, and he came back reporting all of
+them as still broken.
+
 ---
 
-## WHERE THE LAST SESSION LEFT IT (2026-09-05)
+## WHERE THINGS STAND (2026-09-06)
 
-The Keep of Elderwatch had been built directly on top of the bailey's yard
-puzzle — a barrel, a plate, two thirds of a gate, the old keep's locked door and
-BOTH watchmen were inside solid stone, and all 25 suites passed anyway. That is
-fixed, the yard is re-sited and re-playable, and **the Codex is in** (backlog
-14b), found behind the guardroom's barred door. Full write-up at the top of
-`BACKLOG.md`; the map's own notes are in `ELDERWATCH.md`.
+The story runs end to end: Herald -> Wise Man -> Elderwatch (Standard, Codex,
+Ring) -> back to the Wise Man -> **the Farlands**, which is the next chapter and
+is currently a raw map: cooled lava, a walled road in from the east, nothing
+else. `web/world/farlands.js` is about eighty lines and is where that work
+starts.
 
-**The new guard rail: `tools/lib/geometry.mjs`, stage 4 of `./tools/check.sh`.**
-It generates the real map and asserts every declared coordinate stands on ground
-that exists. Run it before trusting any map change — the smoke suites will not
-catch a buried one.
+Read `BACKLOG.md` (newest entry at the TOP) for the full history, and the
+per-map notes in `REACHES.md` and `ELDERWATCH.md`.
+
+### The guard rail that keeps earning its keep
+`tools/lib/geometry.mjs`, stage 4 of `./tools/check.sh`. It generates the real
+maps and asserts: every declared coordinate stands on ground that exists; every
+patrol lane is walkable end to end; a lock/gate/arch makes its prize unreachable
+while shut; no piece of Reaches gear is behind itself; and the road into
+Elderwatch survives the wood. It has found a dozen real bugs that all 25 smoke
+suites passed straight through — buried barrels, buried watchmen, and three
+barriers you could simply walk around. **Run it after any map change.**
 
 Testing, in order: `./tools/check.sh` (fast, no browser) then
-`node tools/smoke.mjs` (25 CDP suites, ~4 min). Never point tests at
-`~/Library/Application Support/StudyQuest/` — use a scratch `SQ_DATA_DIR`.
+`node tools/smoke.mjs` (25 CDP suites, ~4 min; filter by full name, e.g.
+`23-mountain`). Never point tests at `~/Library/Application Support/StudyQuest/`
+— use a scratch `SQ_DATA_DIR`.
 
-### The Codex, in one paragraph
-`shared/codex.js` holds 63 entries in 8 categories. Discovery is DERIVED: each
-entry owns a predicate over the save and one sweep, hung off the single
-`persist` wrapper in `server/api.js`, unions in whatever is true. There is
-nothing to call and nothing to forget. The set is a high-water mark. `[J]` opens
-`web/ui/codex.js`, and refuses until the book is in the pack.
-
-### Next on the Codex
-It has no QUESTS tab. Bruno asked for "quests you make" alongside the items;
-`questsDone` exists on the save but nothing hand-authored fills it. That waits
-on backlog 11-13 (tasks/quests split, NPCs, the billboard catalogue).
+### NEXT: the Farlands
+Bruno, 2026-09-06: *"after you push these changes you can start working on the
+next chapter in the farlands."* What is there: `AREAS.farlands`, the
+`emberrock` tile, a crossing gated on `wiseMan.returned`, and a corridor. What
+the fiction owes it: the twelve families, the Levy, and Ranon — and the Ring,
+which the Wise Man has already said he does not trust. Nothing yet explains what
+it costs to keep, and the Codex does not open without it.
 
 ---
 
-## AGREED SCOPE FOR NEXT SESSION
+## OLDER SCOPE, STILL OPEN
+
 
 
 ### ~~1. Launch menu / title screen~~ — SHIPPED (`web/ui/launch.js`)

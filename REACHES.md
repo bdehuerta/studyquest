@@ -335,3 +335,29 @@ Keep's four floors go back with Elderwatch, and the Warden's three go back with
 the Reaches, since `bouldersFor(peaks)` already joins the terrace puzzle to the
 Warden's room. Only POSITIONS reset. Gear you found and a Warden you broke are
 yours for good.
+
+
+## 2026-09-06 (4) — he asks for two things now, and he opens the road west
+
+The Wise Man's telling used to end at Elderwatch: go east, take the Standard,
+carry it to the farlands. The farlands then became a real map and were reachable
+the moment they existed — the one journey in this game nobody had to be sent on,
+while the Herald opens the east road and the Wise Man opens Elderwatch.
+
+So he asks for more, and he asks for the right thing. At the mouth of the cave
+he stops you: a garrison does not forget on its own, somebody taught that one
+to, and there will be PAPER and a SIGNET because a man who writes forty years of
+orders signs them. Bring him the book and the ring — *not* the standard, which
+is only cloth and whose worth he already knows — and do not go west without him.
+
+**Come back with the Codex and the Ring and he reads it in front of you.** He
+finds forty years of postings in one hand and corrects his own story: he had
+thought the old King said nothing out of fear, and it was because by the time he
+understood, every man who might have carried the message had already been posted
+somewhere cold. Then he sends you west, tells you to show the tribes the ring —
+and says he has been looking at it for an hour and cannot tell you why he does
+not like it.
+
+`wiseMan.returned` is the flag; the home->farlands crossing carries
+`needs: 'wiseman_returned'`; `wise_man_returned` pays 500. `23-mountain` walks
+the whole chain: refuse west, grant the two items, second telling, west opens.
