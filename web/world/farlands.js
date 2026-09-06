@@ -65,21 +65,25 @@ export function buildFarlands(seed) {
   //         same experience. One tile of path thirteen tiles long was a way out
   //         you had to already know about.
   //
-  //         So: the full width of the gap, running most of the way across the
-  //         map, with a walled shoulder either side of it. Until there is
-  //         something else here, the road IS the map, and you can see it from
-  //         anywhere along the east wall.
+  //         So the road is the full width of the gap and runs most of the way
+  //         across the map — and it has NO WALLS ALONG IT.
+  //
+  //         The first fix gave it walled shoulders, which was worse than the
+  //         problem: a wall the width of the map with its only door at the far
+  //         west end, and a stale save had put him on the north side of it. The
+  //         map was technically connected and he was technically not stuck; he
+  //         had a fifty-tile detour with no landmark to aim at, which is the
+  //         same thing. A road you can step onto from anywhere cannot do that.
   const road = crossingRows('farlands', 'east');
   const y0 = road ? road.y0 : 42;
   const y1 = road ? road.y1 : 44;
-  for (let y = y0 - 1; y <= y1 + 1; y += 1) {
-    for (let x = WORLD_W - 1; x >= 12; x -= 1) {
-      put(x, y, (y < y0 || y > y1) ? T.crag : T.path);
-    }
+  for (let y = y0; y <= y1; y += 1) {
+    for (let x = WORLD_W - 1; x >= 12; x -= 1) put(x, y, T.path);
   }
-  // A waymarker where the road gives out, so the far end reads as unfinished
-  // rather than as somewhere you failed to find the rest of.
-  for (const [dx, dy] of [[0, -1], [0, 1]]) put(12 + dx, y0 + 1 + dy, T.crag);
+  // A cairn either side of where the road gives out, so the far end reads as
+  // unfinished rather than as somewhere you failed to find the rest of.
+  put(11, y0, T.crag);
+  put(11, y1, T.crag);
 
   // ---- 4. seal it, leaving the road east open. Rock, not trees: nothing grows
   //         here.

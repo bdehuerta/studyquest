@@ -228,6 +228,56 @@ for (const g of GEAR_SITES) {
       failures.push(`the Farlands: the ${q.item} at ${q.x},${q.y} cannot be walked to`);
     }
   }
+
+  /**
+   * AND THE WAY OUT MUST NOT BE A DETOUR.
+   *
+   * Being able to reach the exit is not the same as being able to FIND it.
+   * The road's first cut had walled shoulders running the width of the map with
+   * their only opening at the far west end — the map was connected, the player
+   * was not stuck, and from where a stale save had put him the way home was a
+   * fifty-tile hunt with no landmark to aim at. He reported it, correctly, as
+   * not being able to leave.
+   *
+   * So: walk out from the exit and require that every tile it can reach is
+   * within a small factor of its straight-line distance. A wall you have to go
+   * round shows up as a ratio; a big empty field does not. This is worth
+   * enforcing on the Farlands in particular because it is a PLACEHOLDER — there
+   * are no landmarks to navigate by and there will not be until it is built.
+   */
+  checked += 1;
+  const exitX = WORLD_W - 1;
+  const exitY = back.y0 + 1;
+  const dist = new Map([[`${exitX},${exitY}`, 0]]);
+  const queue = [[exitX, exitY]];
+  while (queue.length) {
+    const [x, y] = queue.shift();
+    const d = dist.get(`${x},${y}`);
+    for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+      const nx = x + dx;
+      const ny = y + dy;
+      if (nx < 0 || ny < 0 || nx >= WORLD_W || ny >= WORLD_H) continue;
+      if (SOLID.has(far.tiles[ny * WORLD_W + nx])) continue;
+      const key = `${nx},${ny}`;
+      if (dist.has(key)) continue;
+      dist.set(key, d + 1);
+      queue.push([nx, ny]);
+    }
+  }
+  let worst = null;
+  for (const [key, d] of dist) {
+    const [x, y] = key.split(',').map(Number);
+    const straight = Math.abs(x - exitX) + Math.abs(y - exitY);
+    if (straight < 8) continue;                       // near the door, ratios are noise
+    const ratio = d / straight;
+    if (!worst || ratio > worst.ratio) worst = { x, y, d, straight, ratio };
+  }
+  if (worst && worst.ratio > 2) {
+    failures.push(
+      `the Farlands: from ${worst.x},${worst.y} the way home is ${worst.d} steps against a `
+      + `straight line of ${worst.straight} (${worst.ratio.toFixed(1)}x) — something is `
+      + 'making the player walk round it');
+  }
 }
 
 // ── each floor of the Keep ───────────────────────────────────────────────────
