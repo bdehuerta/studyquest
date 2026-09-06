@@ -1456,6 +1456,65 @@ the halo also covers, and it failed — correctly. The test was wrong, not the
 rule.
 
 ---
+## DONE 2026-09-06 — a stale bundle, a lock that locked nothing, and Ranon's Ring
+
+Bruno, playing it: *"the ground floor is all bugged. the codex is not there. the
+stones are inside the walls and the top floor does not unlock anything."*
+
+### THREE OF THOSE FOUR WERE ONE BUG, AND IT WAS MINE
+
+He was playing yesterday's `.app`. Every fix from the session before was
+committed and none of it was ever built: the bundle had no `codex.js` at all,
+`yard_a` still at 30,32 inside the tower, `watch_north` still pacing row 20
+through the keep. **Committing is not shipping in this project** — the `.app` is
+the artifact, and `./build-app.sh` is the last step, not an optional one.
+
+### THE BRASS KEY GATED NOTHING
+
+The fourth complaint was real, and worse than reported. The Hall of Keeping's
+locked door was ONE TILE standing in an open round room. You walked around it.
+The entire Armoury detour that earns the Key — break the arch, take it off the
+hook — was optional, and had been since the tower shipped.
+
+The suite asserted `probeStep(37,28,37,27) === false` and that passed every run,
+because it asked *is this tile solid* when the question was *is there another
+way round*. A DOOR IS ONLY A DOOR IF IT IS IN A WALL. Floor four has
+`shrineWallY` now, and `geometry.mjs` gained the assertion that matters: flood
+the floor from the arrival stair and require that what a lock guards is
+UNREACHABLE while it is shut and reachable once it opens. Commented out the wall
+to check the check fails — it names both items behind the door.
+
+### WHAT THE TOP FLOOR UNLOCKS: THE CODEX
+
+Bruno's answer to the fourth: a chest in the Hall, and *"along with the codex,
+you discover Ranon's masterplan that was all along. the ring that you will have
+to keep to access the codex is dangerous but you dont know that yet."*
+
+So the ledger you take off the guardroom table on the GROUND floor **does not
+open**. It stays shut for the whole climb. `RANON'S RING` is in the chest beside
+the Standard's stand, four floors up behind the Brass Key, and the ring is what
+opens the book. Two refusals, not one: "you have no journal to write in" and
+"the Codex will not open — something is missing from it" are different facts,
+and a player holding a book that does nothing has to be told which.
+
+The reveal is Ranon's, who the Herald named on the road at level 20 — the false
+heir on Gotham's throne who killed his father for it. He did not lose the
+Standard and he did not burn it, because a burnt banner is a story people tell.
+He FILED it, and spent forty years posting to this fort only men who would not
+ask what they were guarding. The Wise Man had it backwards: they did not stop
+asking, they were chosen for not asking. It is the first entry the Codex shows
+you, which means the first thing you ever read in it is why it was shut.
+
+Keeping the ring is the price of reading. That this costs anything is not
+something the game says yet.
+
+### STILL OPEN
+
+The farlands still do not exist, so carrying the Standard west is still a
+promise the map cannot keep — but that is now the NEXT region rather than the
+only thing the top floor gives you. And the Codex still has no quests tab.
+
+---
 ## DONE 2026-09-05 (5) — the tower was built on the yard, and the Codex
 
 Bruno, on picking the session back up: *"some of the changes we made last

@@ -731,8 +731,10 @@ async function loadOptionalPanels() {
       if (state) panels[name].setState(state);
       listeners.push(() => syncDock());
       if (name === 'codex' && typeof panels.codex.setOnDenied === 'function') {
-        panels.codex.setOnDenied(() => {
-          game.toast('you have no journal to write in', '#c8b48a');
+        panels.codex.setOnDenied((why) => {
+          game.toast(why === 'shut'
+            ? 'the Codex will not open — something is missing from it'
+            : 'you have no journal to write in', '#c8b48a');
         });
       }
     } catch (err) {

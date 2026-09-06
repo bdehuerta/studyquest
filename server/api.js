@@ -75,6 +75,7 @@ import {
   crossingAt,
   AREA_NAMES,
   STANDARD_DIALOGUE,
+  RING_DIALOGUE,
   questSitesFor,
   QUEST_ITEMS as QUEST_ITEM_DEFS,
   AREA_PUZZLES,
@@ -3554,7 +3555,8 @@ function routeQuestTake(b, state, save) {
 
   // THE STANDARD IS THE END OF THE ERRAND. It carries its own scene and its own
   // objective, because taking it is the moment the Wise Man was pointing at.
-  const scene = site.item === 'ashen_standard' ? STANDARD_DIALOGUE : null;
+  const SCENES = { ashen_standard: STANDARD_DIALOGUE, ranons_ring: RING_DIALOGUE };
+  const scene = SCENES[site.item] || null;
   if (scene) pushLog(state, `New objective — ${scene.objective}`, 'quest');
   save(state);
   return ok({

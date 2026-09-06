@@ -593,6 +593,26 @@ export const QUEST_ITEMS = Object.freeze({
       + 'back to the farlands and they will raise the Levy.',
   }),
   /**
+   * RANON'S RING, in the chest beside the Standard's stand.
+   *
+   * The Herald named him on the road: the false heir on Gotham's throne, who
+   * killed his own father to take the realm. This is his, and it is here — in
+   * the one room of the one fort that was told not to ask questions — which is
+   * the whole reveal. He did not lose the Standard. He FILED it.
+   *
+   * You need it to read the Codex, and the Codex is where you learn why he
+   * wanted it kept somewhere no one would ever read it. That it costs anything
+   * to carry is not something the game says yet.
+   */
+  ranons_ring: Object.freeze({
+    id: 'ranons_ring',
+    name: "Ranon's Ring",
+    symbol: '◉',
+    color: '#8f6fc4',
+    desc: 'A heavy signet, the crest filed flat and re-cut. Cold in a way the Reaches never '
+      + 'managed. Hold it against a written page and the writing changes its mind.',
+  }),
+  /**
    * THE CODEX. Behind the barred door of the Elderwatch guardroom, which is
    * the one lock in the fort that opens onto knowledge rather than a way on.
    *
@@ -1417,8 +1437,20 @@ export const TOWER_FLOORS = Object.freeze([
     down: Object.freeze({ x: 29, y: 24 }),
     door: Object.freeze({ x: 30, y: 24 }),
     patrols: Object.freeze([]),
-    /** The locked door across the shrine, and what opens it. */
-    lock: Object.freeze({ x: 37, y: 27, item: 'brass_key' }),
+    /**
+     * THE SHRINE WALL. Everything north of this row is the shrine, and the
+     * locked door in it is the only way through.
+     *
+     * Without it the Brass Key gated NOTHING: the lock was a single tile
+     * standing in the middle of an open round room, so you walked around it.
+     * The whole Armoury detour — break the arch, take the Key — was optional,
+     * and `probeStep` across the one door tile answered `false` exactly as the
+     * suite expected while the room behind it stayed wide open. A door is only
+     * a door if it is in a wall.
+     */
+    shrineWallY: 22,
+    /** The locked door through the shrine wall, and what opens it. */
+    lock: Object.freeze({ x: 37, y: 22, item: 'brass_key' }),
     props: Object.freeze([
       Object.freeze({ kind: 'brazier', x: 34, y: 20 }),
       Object.freeze({ kind: 'brazier', x: 40, y: 20 }),
@@ -1436,7 +1468,45 @@ export const TOWER_ITEMS = Object.freeze([
     found: 'The Brass Key — the Hall above will open now.' }),
   Object.freeze({ item: 'ashen_standard', floor: 4, x: 37, y: 20, xp: 'standard_taken',
     needs: 'brass_key', found: 'THE ASHEN STANDARD.' }),
+  // THE CHEST beside the stand. The Standard is what you were sent for; this is
+  // what was actually here.
+  Object.freeze({ item: 'ranons_ring', floor: 4, x: 40, y: 21, xp: 'ring_taken',
+    needs: 'brass_key', found: "RANON'S RING." }),
 ]);
+
+/**
+ * WHAT THE CHEST IN THE HALL OF KEEPING SAYS.
+ *
+ * The Wise Man's errand was the Standard. The Standard was never the point —
+ * it is a banner in a room, and a banner in a room is only dangerous to a man
+ * who knows what it would raise. Ranon knew. He did not burn it, because a
+ * burnt banner is a story; he put it behind a garrison and told the garrison
+ * nothing, which is the same as burning it and quieter.
+ *
+ * The player has been carrying the Codex since the guardroom and has not been
+ * able to open it. This is the scene that explains why, and the ring that fixes
+ * it is the same ring that makes the ledger worth reading.
+ */
+export const RING_DIALOGUE = Object.freeze({
+  name: 'The Hall of Keeping',
+  lines: Object.freeze([
+    'The chest beside the stand is not a garrison chest. It is too good, and it has been '
+      + 'opened often — the hinges are clean in a room where nothing else is.',
+    'Inside: a signet ring, and forty years of paper.',
+    'The paper is requisitions. Postings. Transfer orders, all in one hand, all signed with '
+      + 'the same flattened crest. Somebody has been staffing this fort for four decades, and '
+      + 'staffing it carefully — with men who would not ask.',
+    'You put the ring against the ledger you took from the guardroom, and the Codex opens.',
+    '"They stopped asking what it was," the Wise Man had said. He had it the wrong way round. '
+      + 'They were CHOSEN for not asking.',
+    'Ranon did not lose the Standard. He filed it, and then he spent forty years making sure '
+      + 'the filing held — which means he has known, the whole time, exactly what would happen '
+      + 'if anyone ever raised the Levy.',
+    'The ring is cold. You put it on anyway; without it the Codex is a shut book.',
+  ]),
+  objective: "Read the Codex [J], and carry the Standard west out of Elderwatch. "
+    + 'Ranon has been expecting someone for forty years.',
+});
 
 /**
  * THE BARRELS OF THE GUARDROOM LOCK, and the plates they must sit on.
@@ -1676,6 +1746,8 @@ export const QUEST_XP = Object.freeze({
   culvert_broken: 150,
   /** The guardroom's barrels, and the journal behind them. */
   codex_taken: 220,
+  /** The chest in the Hall. The reveal, and the thing that opens the journal. */
+  ring_taken: 350,
   brass_key_taken: 200,
   standard_taken: 600,
   woodsman_opened: 180,

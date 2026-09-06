@@ -248,42 +248,17 @@ export default {
       expr: "return window.__sqCodex.xp;", equals: 220,
     },
     {
-      type: 'assert', label: 'the panel is available now',
-      expr: "return window.__sqPanels.codex.isAvailable();", equals: true,
+      // A SHUT BOOK. The ledger is in the pack and it still will not open —
+      // the other half is four floors up, and that is what the climb is for.
+      type: 'assert', label: 'but the book alone will not open',
+      expr: "return JSON.stringify(window.__sqPanels.codex.gate());",
+      equals: '{"book":true,"ring":false}',
     },
     {
-      type: 'eval', label: 'open it',
-      expr: "return String(window.__sqPanels.codex.open());",
+      type: 'assert', label: 'and the panel still refuses',
+      expr: "return String(window.__sqPanels.codex.open());", equals: 'false',
     },
-    { type: 'wait', ms: 500 },
-    {
-      // IT ALREADY KNOWS WHERE YOU HAVE BEEN. The sweep runs from the first
-      // save, so a journal found late is a journal found FULL — which is the
-      // whole reason it can be a reward rather than a tutorial.
-      type: 'assert', label: 'it opened already knowing everywhere she had been',
-      expr: `
-        const seenIds = window.__sqPanels.codex.page().rows.filter((r) => r.known).map((r) => r.id);
-        window.__sqPanels.codex.selectTab('place');
-        const places = window.__sqPanels.codex.page().rows.filter((r) => r.known).map((r) => r.id);
-        return places.sort().join(',');
-      `,
-      // NOT the_keep: she has not climbed a stair yet, and the Codex is a record
-      // of what she has seen rather than of what the map contains.
-      equals: 'elderwatch,home,peaks,summit_cave',
-    },
-    {
-      // The blanks are the feature: a page showing only what you have found
-      // would look finished the moment you found one thing.
-      type: 'assert', label: 'and the unfound are drawn as blanks, not dropped',
-      expr: `
-        window.__sqPanels.codex.selectTab('material');
-        const s = window.__sqPanels.codex.shown();
-        return s.cards === 11 && s.blanks > 0 && s.blanks < 11;
-      `,
-      equals: true,
-    },
-    { type: 'screenshot', file: 'v8-codex.png' },
-    { type: 'eval', label: 'shut it', expr: "window.__sqPanels.codex.close(); return 'closed';" },
+    { type: 'note', text: 'The rest of the Codex waits on the ring, at the top of the tower.' },
 
     { type: 'note', text: 'THE KEEP. Four floors, and the map greys out around each one.' },
     {
@@ -444,8 +419,11 @@ export default {
     },
     { type: 'wait', ms: 700 },
     {
+      // AND IT IS IN A WALL NOW. The door used to stand alone in an open round
+      // room, so this same assertion passed while the Standard behind it could
+      // simply be walked to. `tools/lib/geometry.mjs` asserts the walk-around.
       type: 'assert', label: 'the shrine door opens for the Key',
-      expr: "return window.__sqWorld.probeStep(37, 28, 37, 27);", equals: false,
+      expr: "return window.__sqWorld.probeStep(37, 23, 37, 22);", equals: false,
     },
     {
       type: 'eval', label: 'take the Ashen Standard',
@@ -469,5 +447,82 @@ export default {
     },
     { type: 'wait', ms: 700 },
     { type: 'screenshot', file: 'v8-standard.png' },
+
+    { type: 'note', text: 'THE CHEST beside the stand — and what was actually in this room.' },
+    {
+      type: 'eval', label: "take Ranon's Ring out of the chest",
+      expr: `
+        window.__sqRing = 'pending';
+        window.__sqWorld.setPlayerTile(40, 22);
+        setTimeout(() => {
+          Promise.resolve(window.__sqWorld.onTakeQuestItem('ranons_ring'))
+            .then((j) => { window.__sqRing = j; }, (e) => { window.__sqRing = { ok: false, error: e.message }; });
+        }, 300);
+        return 'sent';
+      `,
+    },
+    {
+      type: 'waitFor', timeoutMs: 8000, label: 'it comes out of the chest',
+      expr: "if (window.__sqRing === 'pending') return false; if (!window.__sqRing.ok) throw new Error(window.__sqRing.error); return true;",
+    },
+    {
+      type: 'assert', label: 'and the reveal plays',
+      expr: "return (window.__sqRing.dialogue && window.__sqRing.dialogue.name) || 'none';",
+      equals: 'The Hall of Keeping',
+    },
+    {
+      type: 'eval', label: 'pull it into the page',
+      expr: "return window.sqMenu.reloadState().then(() => 'reloaded');",
+    },
+    { type: 'wait', ms: 700 },
+    {
+      // THIS IS WHAT THE TOP FLOOR UNLOCKS. The book has been in the pack since
+      // the guardroom and shut the whole way up.
+      type: 'assert', label: 'both halves now, and the Codex opens',
+      expr: "return JSON.stringify(window.__sqPanels.codex.gate());",
+      equals: '{"book":true,"ring":true}',
+    },
+    {
+      type: 'eval', label: 'open it',
+      expr: "return String(window.__sqPanels.codex.open());",
+    },
+    { type: 'wait', ms: 500 },
+    {
+      // IT ALREADY KNOWS WHERE SHE HAS BEEN. The sweep has run since the first
+      // save, so a journal opened late is opened FULL — which is what lets it be
+      // a reward instead of a tutorial.
+      type: 'assert', label: 'it opens already knowing everywhere she had been',
+      expr: `
+        const seenIds = window.__sqPanels.codex.page().rows.filter((r) => r.known).map((r) => r.id);
+        window.__sqPanels.codex.selectTab('place');
+        const places = window.__sqPanels.codex.page().rows.filter((r) => r.known).map((r) => r.id);
+        return places.sort().join(',');
+      `,
+      // NOT the_keep: she has not climbed a stair yet, and the Codex is a record
+      // of what she has seen rather than of what the map contains.
+      equals: 'elderwatch,home,peaks,summit_cave,the_keep',
+    },
+    {
+      // The blanks are the feature: a page showing only what you have found
+      // would look finished the moment you found one thing.
+      type: 'assert', label: 'and the unfound are drawn as blanks, not dropped',
+      expr: `
+        window.__sqPanels.codex.selectTab('material');
+        const s = window.__sqPanels.codex.shown();
+        return s.cards === 11 && s.blanks > 0 && s.blanks < 11;
+      `,
+      equals: true,
+    },
+    { type: 'screenshot', file: 'v8-codex.png' },
+    {
+      type: 'assert', label: "and the first thing in it is Ranon's masterplan",
+      expr: `
+        window.__sqPanels.codex.selectTab('rule');
+        const r = window.__sqPanels.codex.page().rows.find((x) => x.id === 'ranons_plan');
+        return !!(r && r.known);
+      `,
+      equals: true,
+    },
+    { type: 'screenshot', file: 'v8-codex.png' },
   ],
 };

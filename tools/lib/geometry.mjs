@@ -156,6 +156,58 @@ for (const f of TOWER_FLOORS) {
   });
 }
 
+/* ============================================================ locks that lock
+ *
+ * A DOOR IS ONLY A DOOR IF IT IS IN A WALL. The Hall of Keeping's locked door
+ * was one tile standing in the middle of an open round room, so the Brass Key
+ * gated nothing and the entire Armoury detour that earns it was optional. The
+ * suite's `probeStep` across that one tile answered `false` exactly as expected
+ * the whole time, because the question it asked was "is this tile solid" and
+ * the question that mattered was "is there another way round".
+ *
+ * So: flood the floor from the stair you arrive on, and require that what the
+ * lock guards is UNREACHABLE while it is shut and reachable once it opens.
+ */
+function floodFloor(map, from, openTile) {
+  const seen = new Set([`${from.x},${from.y}`]);
+  const queue = [[from.x, from.y]];
+  while (queue.length) {
+    const [x, y] = queue.shift();
+    for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+      const nx = x + dx;
+      const ny = y + dy;
+      if (nx < 0 || ny < 0 || nx >= WORLD_W || ny >= WORLD_H) continue;
+      const isOpen = openTile && nx === openTile.x && ny === openTile.y;
+      if (SOLID.has(map.tiles[ny * WORLD_W + nx]) && !isOpen) continue;
+      const key = `${nx},${ny}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      queue.push([nx, ny]);
+    }
+  }
+  return seen;
+}
+
+for (const f of TOWER_FLOORS) {
+  if (!f.lock || !f.down) continue;
+  const map = buildTowerFloor(f.n);
+  const shut = floodFloor(map, f.down, null);
+  const open = floodFloor(map, f.down, f.lock);
+  for (const q of questSitesFor(AREAS.elderwatch, f.n)) {
+    checked += 2;
+    if (shut.has(`${q.x},${q.y}`)) {
+      failures.push(
+        `Keep floor ${f.n}: the ${q.item} at ${q.x},${q.y} can be reached WITHOUT `
+        + `the ${f.lock.item} — the locked door at ${f.lock.x},${f.lock.y} is walked around`);
+    }
+    if (!open.has(`${q.x},${q.y}`)) {
+      failures.push(
+        `Keep floor ${f.n}: the ${q.item} at ${q.x},${q.y} cannot be reached even WITH `
+        + `the ${f.lock.item} — the lock opens onto nothing`);
+    }
+  }
+}
+
 // ── verdict ──────────────────────────────────────────────────────────────────
 if (failures.length === 0) {
   if (!QUIET) {

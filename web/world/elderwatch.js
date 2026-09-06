@@ -201,6 +201,13 @@ export function buildTowerFloor(n) {
   for (const prop of (floorDef.props || [])) {
     put(prop.x, prop.y, PROP_TILE[prop.kind] || T.crate);
   }
+  // A WALL ACROSS THE ROOM, so that the floor's locked door has something to be
+  // a door IN. Drawn before the lock, which then punches the one hole in it.
+  if (Number.isFinite(floorDef.shrineWallY)) {
+    for (let x = TOWER.cx - TOWER.r; x <= TOWER.cx + TOWER.r; x += 1) {
+      put(x, floorDef.shrineWallY, T.rimewall);
+    }
+  }
   for (const c of (floorDef.cracked || [])) put(c.x, c.y, T.crackedcrag);
   for (const g of Object.values(floorDef.gates || {})) {
     for (const t of g) put(t.x, t.y, T.icegate);

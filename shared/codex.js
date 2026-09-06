@@ -268,6 +268,18 @@ export const CODEX_ENTRIES = Object.freeze([
     known: (s) => count(s.questItems, id),
   })),
   ...RULES.map((r) => ({ ...r, category: 'rule' })),
+  // THE REVEAL, as an entry. It unlocks on holding both halves — which is the
+  // same moment the panel first opens, so the first thing a player ever reads
+  // in the Codex is the reason they can read it at all.
+  Object.freeze({
+    id: 'ranons_plan', category: 'rule', name: "Ranon's Masterplan",
+    flavour: 'He did not lose the Ashen Standard, and he did not burn it — a burnt banner is '
+      + 'a story people tell. He filed it, in a fort on a cold moor, and then spent forty '
+      + 'years posting to that fort only men who would not ask what they were guarding. The '
+      + 'Levy could never be raised because the thing that raises it was never missing. It '
+      + 'was catalogued.',
+    known: (s) => hasCodexBook(s) && hasRing(s),
+  }),
 ]);
 
 /** The sections, in display order, with the heading each one wears. */
@@ -362,14 +374,28 @@ export function codexProgress(state) {
 }
 
 /**
- * Is the book itself in your hands?
+ * TWO THINGS OPEN THE CODEX, AND YOU FIND THEM FOUR FLOORS APART.
  *
- * The Codex is a THING, found behind the Elderwatch guardroom's barred door,
- * and the panel does not open until you are carrying it. The sweep still runs
- * from the very first save — so the day you lift it off the table it is already
- * full of everywhere you have been, which is the whole idea of a journal you
- * find late.
+ * The book comes off a table in the guardroom, on the ground. It does not open.
+ * The ring comes out of a chest in the Hall of Keeping, at the top of the
+ * tower, behind the Brass Key — and it is the ring that makes the ledger
+ * readable, which is why the climb is worth making and what the top floor is
+ * FOR. A player who finds only the book is carrying a shut book, and is
+ * supposed to notice.
+ *
+ * You must KEEP the ring, not merely have touched it. That it costs anything to
+ * carry is not something the game says yet.
  */
 export function hasCodex(state) {
+  return hasCodexBook(state) && hasRing(state);
+}
+
+/** The ledger itself — found first, and useless on its own. */
+export function hasCodexBook(state) {
   return Number(obj(state && state.questItems).codex) > 0;
+}
+
+/** Ranon's signet. Without it the pages stay shut. */
+export function hasRing(state) {
+  return Number(obj(state && state.questItems).ranons_ring) > 0;
 }

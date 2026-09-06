@@ -15,7 +15,9 @@
 // The frame, tabs, cards and chips are the shared theme's, so this panel wears
 // the same parchment and gold as the rest without a second copy of it.
 
-import { CODEX_CATEGORIES, codexPage, codexProgress, hasCodex } from '../../shared/codex.js';
+import {
+  CODEX_CATEGORIES, codexPage, codexProgress, hasCodex, hasCodexBook, hasRing,
+} from '../../shared/codex.js';
 import { RARITIES } from '../../shared/constants.js';
 import { injectTheme, el, MONO } from './theme.js';
 
@@ -156,7 +158,13 @@ export function createCodex(overlay) {
    */
   function doOpen() {
     if (!hasCodex(state)) {
-      if (typeof onDenied === 'function') onDenied();
+      // TWO DIFFERENT REFUSALS. "You have no journal" and "the journal will not
+      // open" are different facts, and a player holding a book that does
+      // nothing needs to be told it is the book that is the problem — otherwise
+      // the guardroom's whole reward reads as broken.
+      if (typeof onDenied === 'function') {
+        onDenied(hasCodexBook(state) && !hasRing(state) ? 'shut' : 'missing');
+      }
       return false;
     }
     open = true;
@@ -181,8 +189,10 @@ export function createCodex(overlay) {
     open: doOpen,
     close: doClose,
     isOpen: () => open,
-    /** Read by the dock: no button until the book is in the pack. */
+    /** Read by the dock: the button appears once the book can actually be read. */
     isAvailable: () => hasCodex(state),
+    /** Test seam: which half you are missing. */
+    gate: () => ({ book: hasCodexBook(state), ring: hasRing(state) }),
     /** Called instead of opening when the book has not been found. */
     setOnDenied: (fn) => { onDenied = fn; },
     /** Test seam: which section is showing, and how full it is. */

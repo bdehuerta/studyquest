@@ -33,7 +33,7 @@ permission to use is a staircase you walk past.
 | 1 | **The Guardroom** | two watchmen on a ring corridor — time them |
 | 2 | **The Cistern** | two barrels onto two plates opens the gate to the stair |
 | 3 | **The Armoury** | a bricked arch — the Stone Hammer — and the **Brass Key** behind it |
-| 4 | **The Hall of Keeping** | a locked door — the Brass Key — and the **Ashen Standard** |
+| 4 | **The Hall of Keeping** | a locked door in a WALL — the Brass Key — the **Ashen Standard**, and the chest beside its stand |
 
 ## WHAT THE TOWER BROKE ON ITS WAY UP
 
@@ -94,6 +94,39 @@ the first thing Elderwatch asks of you is the last thing the mountain gave you.
   shoved back — there is nowhere to stand behind it — and being caught is not a
   reliable undo for a player who is never caught.
 
+## THE TOP FLOOR, AND WHAT IT IS FOR
+
+Two things were wrong with it, and they were the same thing twice.
+
+**The Brass Key gated nothing.** The Hall's locked door was a single tile
+standing in an open round room, so you walked around it and the entire Armoury
+detour that earns the Key was optional. `probeStep` across that one tile
+answered "solid" exactly as the suite expected, the whole time — the question it
+asked was *is this tile solid* and the question that mattered was *is there
+another way round*. A door is only a door if it is in a wall; there is a wall
+now (`shrineWallY`), and `geometry.mjs` floods the floor from the arrival stair
+and requires that what a lock guards is unreachable while it is shut.
+
+**And the floor unlocked nothing.** Taking the Standard paid xp, played a scene
+and set an objective pointing at a region that does not exist. So the chest
+beside the stand holds **Ranon's Ring** — and the Ring is what opens the Codex.
+
+That is the shape of it: the ledger comes off a table on the GROUND floor and
+does not open. It stays shut for the whole climb. The thing that opens it is
+four floors up, behind the Key, in a chest that has been opened often in a room
+where nothing else has. What you read first, when it finally opens, is why it
+was shut.
+
+The reveal is Ranon's — the false heir the Herald named on the road, who killed
+his father for the throne. He did not lose the Standard and he did not burn it,
+because a burnt banner is a story people tell. He filed it, and then spent forty
+years posting to this fort only men who would not ask what they were guarding.
+The Wise Man had it the wrong way round: they did not stop asking. They were
+chosen for not asking.
+
+**You have to KEEP the ring to keep reading.** That this costs anything is not
+something the game says yet.
+
 ## WHAT IS NOT HERE
 
 No boss. The garrison *is* the encounter, and a third patrol with more hit
@@ -101,5 +134,6 @@ points than the other two would be a boss in the way a wall is a puzzle. If
 Elderwatch grows one it should be the Castellan, and it should want something
 other than timing.
 
-Nothing happens when you leave with the Standard except the objective changing.
-The next region — carrying it back to the farlands — is the next region.
+Carrying the Standard west is still the next region, and the farlands still do
+not exist. What has changed is that leaving is no longer the only thing the top
+floor gives you.
