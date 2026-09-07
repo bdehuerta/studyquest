@@ -2530,6 +2530,25 @@ export function createGame(canvas) {
    */
   function gateOpen(name) {
     if (switchesHere().some((w) => w.opens === name && switchThrown(w.id))) return true;
+
+    /**
+     * THE WARDEN'S DOOR STAYS OPEN ONCE THE WARDEN IS BROKEN.
+     *
+     * The summit cave's mouth is held by his three plates, and leaving a map
+     * puts every rock on it back where it started. Both of those are right on
+     * their own and together they sealed the Wise Man in: you beat the Warden,
+     * walked in, were sent to Elderwatch — and the moment you left the mountain
+     * the boulders went home, the plates lifted and the door shut. Coming back
+     * with the Codex and the Ring, there was no way in, so `wiseMan.returned`
+     * could never be set and the road west never opened. That is the whole of
+     * "in old saves it still does not let me travel to the farlands", and it
+     * would have caught every new save the second time it climbed.
+     *
+     * Beating him is PERMANENT — `warden.beaten` latches in the save — so the
+     * door he was standing in front of is permanent too. The plates are how you
+     * beat him, not a switch you have to keep holding down.
+     */
+    if (name === 'summit' && reachesState().wardenBeaten) return true;
     const set = puzzleSet();
     const all = towerFloor > 0 ? (set ? set.plates : []) : platesFor(worldArea);
     const plates = all.filter((p) => p.gate === name);

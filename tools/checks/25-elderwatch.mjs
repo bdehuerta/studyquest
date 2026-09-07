@@ -313,7 +313,11 @@ export default {
       expr: "window.__sqWorld.setPlayerTile(37, 37); return 'ok';",
     },
     { type: 'wait', ms: 500 },
-    { type: 'hold', key: 'w', ms: 900, label: 'in through the door' },
+    // 1600ms, not 900: she has two tiles to cover and the hold is the only
+    // thing pushing her. Under a loaded machine 900ms sometimes ended a step
+    // short of the stair and the climb never fired — the assertion was right
+    // and the walk was too brief.
+    { type: 'hold', key: 'w', ms: 1600, label: 'in through the door' },
     {
       type: 'waitFor', timeoutMs: 8000, label: 'the Guardroom, floor one',
       expr: "return window.__sqWorld.getMountain().floor === 1;",

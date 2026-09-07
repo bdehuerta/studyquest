@@ -187,5 +187,56 @@ export default {
       equals: true,
     },
     { type: 'screenshot', file: 'v7-cave.png' },
+
+    { type: 'note', text: 'AND THE DOOR STAYS OPEN AFTER YOU LEAVE THE MOUNTAIN.' },
+    {
+      // THE BUG THIS EXISTS FOR. The cave's mouth is held by the Warden's three
+      // plates, and leaving a map puts every rock on it back where it started.
+      // Both are right; together they sealed the Wise Man in — you came back
+      // with the Codex and the Ring and there was no way in, so the second
+      // telling could never happen and the road west never opened.
+      type: 'api', route: '/api/player/move', body: { x: 1, y: 42 }, expectOk: true,
+      label: 'off the mountain',
+    },
+    {
+      type: 'api', route: '/api/travel', body: { x: 1, y: 42 }, expectOk: true,
+      label: 'down to the Home Block', path: 'area', equals: 'home',
+    },
+    { type: 'api', route: '/api/player/move', body: { x: 63, y: 10 }, expectOk: true, label: 'and back east' },
+    {
+      type: 'api', route: '/api/travel', body: { x: 63, y: 10 }, expectOk: true,
+      label: 'up the mountain again', path: 'area', equals: 'peaks',
+    },
+    {
+      type: 'eval', label: 'pull it into the page',
+      expr: "return window.sqMenu.reloadState().then(() => 'reloaded');",
+    },
+    { type: 'wait', ms: 800 },
+    {
+      type: 'assert', label: 'the boulders went back to where they started',
+      expr: `
+        return import('/shared/constants.js').then((C) => {
+          const now = window.__sqWorld.getMountain().boulders;
+          return C.WARDEN.boulders.every((b) =>
+            now.some((n) => n.id === b.id && n.x === b.x && n.y === b.y));
+        });
+      `,
+      equals: true,
+    },
+    {
+      // ...and the cave is STILL open, because beating him is permanent. The
+      // plates are how you beat the Warden, not a switch you must keep held.
+      type: 'assert', label: 'and the cave is still open anyway',
+      expr: "return window.__sqWorld.getMountain().gateOpen.summit;", equals: true,
+    },
+    {
+      type: 'assert', label: 'so the Wise Man can still be walked to',
+      expr: `
+        return import('/shared/constants.js').then((C) =>
+          !window.__sqWorld.probeStep(C.WISE_CAVE.doorX, C.WISE_CAVE.doorY + 1,
+                                      C.WISE_CAVE.doorX, C.WISE_CAVE.doorY));
+      `,
+      equals: true,
+    },
   ],
 };
