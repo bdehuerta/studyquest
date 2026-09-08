@@ -22,11 +22,13 @@ import {
   TILE_TYPES, SOLID_TILES, WORLD_W, WORLD_H,
   AREAS, AREA_PUZZLES, TOWER_FLOORS, ELDERWATCH, ELDERWATCH_WATCH,
   bouldersFor, platesFor, questSitesFor, GEAR_SITES, CROSSINGS, WARDEN,
+  AREA_IDS, areaOfSave,
   ELDERWATCH_SWITCHES,
 } from '../../shared/constants.js';
 import { buildElderwatch, buildTowerFloor } from '../../web/world/elderwatch.js';
 import { buildReaches } from '../../web/world/reaches.js';
 import { buildFarlands } from '../../web/world/farlands.js';
+import { createWorld } from '../../web/world/world.js';
 import { pagesContract, CODEX_PAGE_IDS } from '../../shared/pages.js';
 
 const SOLID = new Set(SOLID_TILES);
@@ -487,6 +489,58 @@ function walkReaches(gear) {
   const problems = pagesContract();
   checked += CODEX_PAGE_IDS.length;
   for (const p of problems) failures.push(`codex pages: ${p}`);
+}
+
+/* ====================================== every AREA is a map somebody can be on
+ *
+ * `AREAS` is the list; the client and the server each used to WRITE OUT which
+ * of them they recognised, and the client's copy fell a map behind. A save
+ * standing in the Farlands was redrawn as the Home Block, and because position
+ * commits carry the area and mismatched ones are discarded, the player was
+ * frozen in place as far as the server was concerned and could not travel at
+ * all. Both are derived now; this makes sure they stay that way.
+ *
+ * The test is the real one: build each area's map and require it to come back
+ * with ground on it. An area that falls through a whitelist renders as some
+ * OTHER area's map, which is a picture, not an error — nothing throws, and the
+ * only symptom is a player who cannot leave.
+ */
+{
+  // THE SHARED DECISION ITSELF: a save naming any map must resolve to that map.
+  // This is the line that fell behind — it read `peaks || elderwatch ? a : home`
+  // and sent every Farlands save to the Home Block.
+  for (const area of AREA_IDS) {
+    checked += 1;
+    const got = areaOfSave({ player: { area } });
+    if (got !== area) {
+      failures.push(
+        `areas: a save in "${area}" resolves to "${got}" — it is falling through the `
+        + 'whitelist, so the renderer and the server will disagree about where the player is');
+    }
+  }
+  const seen = new Map();
+  for (const area of Object.values(AREAS)) {
+    checked += 1;
+    let map = null;
+    try { map = createWorld(12345, area); } catch (err) {
+      failures.push(`areas: "${area}" will not build — ${err.message}`);
+      continue;
+    }
+    if (!map || !map.tiles || map.tiles.length !== WORLD_W * WORLD_H) {
+      failures.push(`areas: "${area}" did not return a full map`);
+      continue;
+    }
+    // Two areas that render byte-for-byte the same map means one of them fell
+    // through a whitelist onto the other's terrain.
+    const sig = map.tiles.join(',');
+    if (seen.has(sig)) {
+      failures.push(
+        `areas: "${area}" renders exactly the same map as "${seen.get(sig)}" — it is falling `
+        + 'through a whitelist rather than being drawn');
+    } else {
+      seen.set(sig, area);
+    }
+  }
 }
 
 // ── verdict ──────────────────────────────────────────────────────────────────

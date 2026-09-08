@@ -979,6 +979,25 @@ export const AREAS = Object.freeze({
   elderwatch: 'elderwatch',
 });
 export const AREA_IDS = Object.freeze(Object.keys(AREAS));
+/**
+ * WHICH MAP A SAVE IS ON. One implementation, shared by the renderer and the
+ * server, because two copies of this fell out of step and stranded a player.
+ *
+ * The client had `a === peaks || a === elderwatch ? a : home` and the server
+ * had its own list; when the Farlands arrived only the server's was updated. A
+ * save in the Farlands was therefore DRAWN as the Home Block while the server
+ * knew better — and since position commits carry the area and mismatched ones
+ * are discarded, every step the player took was thrown away, travel read a
+ * frozen position, and they could not leave any map at all.
+ *
+ * Anything unrecognised falls back to home, which is the only map that is
+ * always safe to be on.
+ */
+export function areaOfSave(state) {
+  const a = state && state.player && state.player.area;
+  return AREA_IDS.indexOf(a) !== -1 ? a : AREAS.home;
+}
+
 export const AREA_NAMES = Object.freeze({
   home: 'The Home Block',
   elderwatch: 'Elderwatch',

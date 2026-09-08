@@ -22,7 +22,7 @@ import {
   REACHES_GEAR, GEAR_SITES,
   EAST_ROAD, AREA_PUZZLES, bouldersFor, platesFor,
   ELDERWATCH, ELDERWATCH_WATCH, crossingAt, crossingRows, questSitesFor, DOOR_KEYS, QUEST_ITEMS,
-  AREA_NAMES, CROSSINGS,
+  AREA_NAMES, CROSSINGS, areaOfSave,
   CHEESECAKE_HERMIT, ELDERWATCH_SWITCHES,
   TOWER, TOWER_FLOORS,
   WARDEN, WISE_CAVE,
@@ -701,13 +701,27 @@ export function createGame(canvas) {
   let lastRiding = false;
 
   /** Which map the save says we are on. Older saves have no area at all. */
-  function stateArea() {
-    const a = state && state.player && state.player.area;
-    // A whitelist, not a two-way switch. With three maps, "not peaks" no longer
-    // means "home", and a save standing in Elderwatch was quietly redrawn as
-    // the Home Block.
-    return (a === AREAS.peaks || a === AREAS.elderwatch) ? a : AREAS.home;
-  }
+  /**
+   * WHICH MAP THE SAVE SAYS WE ARE ON.
+   *
+   * DERIVED FROM `AREAS`, never hand-listed. It was written out as
+   * `a === peaks || a === elderwatch ? a : home` — correct when there were
+   * three maps, and silently wrong the moment there were four: a save standing
+   * in the Farlands fell through to the Home Block, so the renderer drew home
+   * while the server knew farlands.
+   *
+   * That alone would only be a wrong picture. What made it a TRAP is that
+   * position commits carry the area now and the server drops the ones that do
+   * not match — so every step the player took was discarded, travel read a
+   * frozen position and answered "there is no way out of the map here", and
+   * they could not leave. Bruno: "I get trapped inside the home block and cant
+   * move to another map."
+   *
+   * The comment above the old line already warned about exactly this happening
+   * once before. A list you have to remember to extend is a list that gets
+   * forgotten; `tools/lib/geometry.mjs` now checks this one against AREAS.
+   */
+  function stateArea() { return areaOfSave(state); }
 
   /**
    * Swap the terrain if the save has moved us to the other map.

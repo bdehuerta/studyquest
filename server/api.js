@@ -86,6 +86,7 @@ import {
   TOWER_FLOORS,
   DOOR_KEYS,
   ELDERWATCH_SWITCHES,
+  areaOfSave,
 } from '../shared/constants.js';
 import { sweepCodex } from '../shared/codex.js';
 
@@ -3150,12 +3151,9 @@ function routeFish(b, state, save) {
 // =========================================================================
 
 /** Which map the scholar is standing on. Defaults to home for older saves. */
+/** Which map the scholar is standing on. Shared with the renderer — see areaOfSave. */
 function areaOf(state) {
-  const a = state.player && state.player.area;
-  // A whitelist, not a two-way switch: there are three maps now and a save that
-  // names one of them must not be quietly sent home.
-  return (a === AREAS.peaks || a === AREAS.elderwatch || a === AREAS.farlands)
-    ? a : AREAS.home;
+  return areaOfSave(state);
 }
 
 function wiseManOf(state) {
