@@ -1456,6 +1456,67 @@ the halo also covers, and it failed — correctly. The test was wrong, not the
 rule.
 
 ---
+## DONE 2026-09-08 — quests become their own thing, and a man about a cheesecake
+
+### TASKS AND QUESTS WERE SHARING A NAME
+
+Real coursework keeps the panel, takes the name TASKS and moves to [T]. The
+errands people give you are QUESTS and live in the Bag as its FIRST tab, because
+"what am I supposed to be doing" is the question that opens a bag most often.
+This closes backlog 11's first half.
+
+`shared/quests.js` holds three: the Herald's Levy, the Woodsman's Blue Bloom,
+the hermit's cheesecake. DERIVED like the Codex — a stage is a function of the
+save, never a field somebody remembers to advance.
+
+ONE RULE FOUND WHILE TESTING: a finished later step finishes the earlier ones.
+The predicates recognise STATES, not events, so a save can reach step 4 by a
+route that leaves step 1's evidence behind — the hermit's step 1 is "you went
+west", recognised by `areaPos.farlands`, and walking home again would have shown
+a completed quest as not started.
+
+### THE CHEESE CAVE
+
+The hermit is a real NPC now rather than a client-side easter egg, because he
+hands over ten florins and eventually a hat. His errand: buy cheese from a man
+in a cave in the Farlands.
+
+THE WARREN IS ITS OWN FULL-SIZE MAP, exactly as a floor of the Keep is — so
+collision, the camera and the tile loop never learn a cave exists. What differs
+is the LIGHT. A tower floor greys the world out around a lit room and you read
+the whole floor at a glance; this lights nothing. It is the Stonemason's dark,
+and the lantern is the only reason you see the corridor you are in. **A maze you
+can see is a diagram.** So the cave mouth says out loud to bring one.
+
+A PERFECT MAZE, carved on odd cells by iterative backtracking: exactly one route
+between any two points, no closed pockets, deterministic from the seed so it is
+the same cave every visit — a maze that reshuffles is not a place. The monger is
+582 tiles from the entry.
+
+Reaching him opens his door, which comes out beside the cave mouth: a maze is a
+puzzle once and a corridor after that. The bowl outside the mouth is cave floor
+and goes dark BEFORE the hole does, so the cave announces itself rather than
+being a tile you fall down.
+
+He sells at ten florins and has not moved on it in thirty years. Talk once,
+press E again to buy. Reward: 500xp and THE CHEESECAKE HELM — biscuit brim, set
+custard crown, one glazed cherry — a real passive tool, so it equips in the Gear
+tab like anything else. It is the only gear in the game that is neither bought,
+crafted nor found: somebody made it for you, out of four terraces of solitude
+and one idea.
+
+`geometry.mjs` asserts the maze IS one: a seed that put the monger within 120
+steps fails as "a corridor, not the warren the hermit warned you about".
+
+### A TEST THAT KEPT FLAKING, AND WHY LENGTHENING IT DID NOT HELP
+
+25-elderwatch stood the scholar two tiles from the keep's stair and held a key.
+It flaked at 900ms and again at 1600ms, because the failure is not duration — a
+loaded machine drops most of a hold's frames and she covers no ground at all.
+She stands ONE tile below it now: a single step suffices, and stepping onto a
+stair is still what climbs it. Shorten the distance, not lengthen the wait.
+
+---
 ## DONE 2026-09-06 (4) — the Codex's other half: pages you have to work out
 
 Bruno, choosing the Farlands chapter: *"3 [Ranon gets there first], and we need

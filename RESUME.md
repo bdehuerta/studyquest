@@ -36,6 +36,11 @@ Testing, in order: `./tools/check.sh` (fast, no browser) then
 `23-mountain`). Never point tests at `~/Library/Application Support/StudyQuest/`
 — use a scratch `SQ_DATA_DIR`.
 
+### The keys as they stand
+W A S D move · E interact · 1/2 select a slot · P boat · L saves · **T tasks**
+(real coursework) · Tab the Bag · J the Codex · Esc unwinds. Quests are a TAB in
+the Bag, not a panel: `shared/quests.js`, derived from the save.
+
 ### NEXT: the Farlands
 Bruno, 2026-09-06: *"after you push these changes you can start working on the
 next chapter in the farlands."* What is there: `AREAS.farlands`, the
