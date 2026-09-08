@@ -1456,6 +1456,65 @@ the halo also covers, and it failed — correctly. The test was wrong, not the
 rule.
 
 ---
+## DONE 2026-09-08 (2) — the ending, and four things the screen never said
+
+### QUEST ONE RUNS TO ITS END
+
+Eight steps. The recall (600xp), four real minutes while the twelve walk, the
+muster (1500xp), and the Ashen Standard goes into the ground it was taken from.
+
+THE RECALL NEEDS BOTH THE RING AND THE CODEX, and the reason is the point of the
+arc: the ring alone is a lump of metal with a filed crest, the book alone is
+evidence nobody has to act on. What the Codex turns out to be is not a
+confession but a FORMULARY — every order he ever sent, in the phrasing that
+moved men without their asking who wanted them moved.
+
+The cost is stated and NOT resolved, because it is chapter two's problem: "he
+kept us apart for forty years with paper, and you brought us together in eleven
+days with paper, and the paper did not care either time." It lands in the Codex
+as a Rule of the World — The Hand That Signs.
+
+### FOUR THINGS WHERE THE CODE WAS RIGHT AND THE SCREEN NEVER SAID SO
+
+**The gates never moved.** `gateOpen()` decided whether you could WALK through
+one; the draw never asked. A barred gate with both plates held rendered as a
+solid slab, so solving it produced no feedback beyond the wall quietly ceasing
+to be a wall. They slide into the rock over 380ms now, keyed by gate NAME so all
+three tiles move together — out of step they read as three doors.
+
+**The summit cave had no ceiling** — from outside, an open shelf with a fire and
+a door on it. It has the Stonemason's roof now, in crag rather than stone, and
+both caves share one `drawRoofSlab`. Neither roof ever covers its own doorway.
+
+**The muster was a crowd in the dialogue and a woman on the map.** Twelve named
+fires, in a ring rather than a grid. And whether they have arrived is settled on
+EVERY request, not only when you talk to somebody — otherwise the muster
+appeared the instant you spoke to Ilsa, which is exactly when you can no longer
+watch it arrive.
+
+**And a watchman stands in the breach** once you carry the Ring: the culvert was
+the way IN and is not the way out, so the winch stops being a curiosity. Keyed
+on the ring rather than the Standard, which is planted three regions away.
+
+### THE CHECK THAT MATTERS MOST HERE
+
+A guard in the only other exit is one coordinate from a locked room with the
+player inside it. `geometry.mjs` blocks his tile, re-floods the bailey and
+requires the winch AND the front gate to still be reachable. It caught my own
+first draft of the assertion, which aimed at the second slab OF THE GATE instead
+of the tile in front of it.
+
+### AND A TEST FIXED WRONG THREE TIMES
+
+25-elderwatch's climb held a key and flaked at 900ms, at 1600ms, and again from
+one tile away. The failure was never distance or duration: under load the
+harness drops most of a hold's frames and the player covers no ground at all, so
+every fix was tuning the wrong knob. She is placed on the stair; the world checks
+the tile she stands on each update, which is the path a walking player takes.
+Three consecutive green runs. **When a held key flakes, remove the input — do
+not lengthen the walk.**
+
+---
 ## DONE 2026-09-08 — quests become their own thing, and a man about a cheesecake
 
 ### TASKS AND QUESTS WERE SHARING A NAME
