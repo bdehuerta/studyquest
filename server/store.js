@@ -327,6 +327,12 @@ export function defaultState() {
     // one. The book itself is a quest item; this fills in whether you have
     // found it or not, so the day you do it is already full.
     codex: { seen: [] },
+    // v10 — the hermit's errand, and whether you are down the cheese cave.
+    // `spoken` he has asked; `monger` you have found the cheesemonger; `paid`
+    // he has been given the cheese and has baked. Seeded lazily like the rest,
+    // so an older save walks into the quest rather than round it.
+    hermit: { spoken: false, monger: false, paid: false },
+    cave: { in: false },
     // v6 — the second map. `area` is where the scholar is standing; `areaPos`
     // remembers the last tile in each, so walking back and forth does not dump
     // you at a fixed spot every time.

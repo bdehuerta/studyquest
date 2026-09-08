@@ -444,9 +444,11 @@ export default {
     { type: 'key', key: 'Tab', label: 'open the Bag' },
     { type: 'wait', ms: 700 },
     {
-      type: 'assert', label: 'the Bag is down to four tabs',
+      // FIVE NOW: QUESTS leads, because "what am I supposed to be doing" is the
+      // question a player opens the Bag with most often.
+      type: 'assert', label: 'the Bag has its five tabs, quests first',
       expr: "return [...document.querySelectorAll('.sq-theme-tab')].map(b=>b.textContent.trim()).join(',');",
-      equals: 'ITEMS,GEAR,RELICS,DARK BOXES',
+      equals: 'QUESTS,ITEMS,GEAR,RELICS,DARK BOXES',
     },
     {
       type: 'assert', label: 'ITEMS carries the slot buttons for the axe',

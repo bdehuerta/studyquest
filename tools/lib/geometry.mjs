@@ -22,12 +22,12 @@ import {
   TILE_TYPES, SOLID_TILES, WORLD_W, WORLD_H,
   AREAS, AREA_PUZZLES, TOWER_FLOORS, ELDERWATCH, ELDERWATCH_WATCH,
   bouldersFor, platesFor, questSitesFor, GEAR_SITES, CROSSINGS, WARDEN,
-  AREA_IDS, areaOfSave,
+  AREA_IDS, areaOfSave, CHEESE_CAVE,
   ELDERWATCH_SWITCHES,
 } from '../../shared/constants.js';
 import { buildElderwatch, buildTowerFloor } from '../../web/world/elderwatch.js';
 import { buildReaches } from '../../web/world/reaches.js';
-import { buildFarlands } from '../../web/world/farlands.js';
+import { buildFarlands, buildCheeseCave } from '../../web/world/farlands.js';
 import { createWorld } from '../../web/world/world.js';
 import { pagesContract, CODEX_PAGE_IDS } from '../../shared/pages.js';
 
@@ -307,6 +307,51 @@ for (const g of GEAR_SITES) {
       `the Farlands: from ${worst.x},${worst.y} the way home is ${worst.d} steps against a `
       + `straight line of ${worst.straight} (${worst.ratio.toFixed(1)}x) — something is `
       + 'making the player walk round it');
+  }
+}
+
+// ── the cheese cave ──────────────────────────────────────────────────────────
+// A generated maze is the one map in this game whose shape nobody chose, so it
+// is also the one that most needs asking. Perfect mazes have no pockets, but a
+// seed that walled the monger off would be a quest you could not finish and
+// nothing would throw.
+{
+  const cave = buildCheeseCave(12345);
+  const CC = CHEESE_CAVE;
+  expectTile(cave, 'the cheese cave: the entry', CC.entry.x, CC.entry.y, { oneOf: [T.stair] });
+  expectTile(cave, 'the cheese cave: the monger stands', CC.monger.x, CC.monger.y);
+  expectTile(cave, 'the cheese cave: his door out', CC.exit.x, CC.exit.y, { oneOf: [T.stair] });
+
+  const reach = floodFloorMulti(cave, CC.entry, []);
+  for (const [what, at] of [['the cheesemonger', CC.monger], ['his way out', CC.exit]]) {
+    checked += 1;
+    if (!reach.has(`${at.x},${at.y}`)) {
+      failures.push(`the cheese cave: ${what} at ${at.x},${at.y} cannot be walked to from the entry`);
+    }
+  }
+  // ...and it has to be a WALK. A maze you cross in twenty steps is a corridor.
+  checked += 1;
+  const dist = new Map([[`${CC.entry.x},${CC.entry.y}`, 0]]);
+  const q2 = [[CC.entry.x, CC.entry.y]];
+  while (q2.length) {
+    const [x, y] = q2.shift();
+    const d = dist.get(`${x},${y}`);
+    for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+      const nx = x + dx;
+      const ny = y + dy;
+      if (nx < 0 || ny < 0 || nx >= WORLD_W || ny >= WORLD_H) continue;
+      if (SOLID.has(cave.tiles[ny * WORLD_W + nx])) continue;
+      const key = `${nx},${ny}`;
+      if (dist.has(key)) continue;
+      dist.set(key, d + 1);
+      q2.push([nx, ny]);
+    }
+  }
+  const walk = dist.get(`${CC.monger.x},${CC.monger.y}`);
+  if (!(walk > 120)) {
+    failures.push(
+      `the cheese cave: the monger is only ${walk} steps from the entry — that is a corridor, `
+      + 'not the warren the hermit warned you about');
   }
 }
 

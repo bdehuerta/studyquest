@@ -84,8 +84,8 @@
   },
   {
    "type": "key",
-   "key": "q",
-   "label": "open Quests (Q)"
+   "key": "t",
+   "label": "open Tasks (T)"
   },
   {
    "type": "wait",

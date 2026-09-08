@@ -87,6 +87,12 @@ import {
   DOOR_KEYS,
   ELDERWATCH_SWITCHES,
   areaOfSave,
+  CHEESECAKE_HERMIT,
+  CHEESECAKE_DIALOGUE,
+  CHEESECAKE_ASK,
+  CHEESECAKE_PAID,
+  MONGER_DIALOGUE,
+  CHEESE_CAVE,
 } from '../shared/constants.js';
 import { sweepCodex } from '../shared/codex.js';
 
@@ -1313,6 +1319,12 @@ export async function handleApi(pathname, body, state, save) {
       case '/api/reaches/push':
         return routeReachesPush(b, state, persist);
 
+      case '/api/cave/enter':
+        return routeCaveEnter(b, state, persist);
+      case '/api/cave/leave':
+        return routeCaveLeave(b, state, persist);
+      case '/api/cheese/buy':
+        return routeCheeseBuy(b, state, persist);
       case '/api/switch/throw':
         return routeSwitchThrow(b, state, persist);
       case '/api/door/open':
@@ -2719,6 +2731,8 @@ function routeNpcTalk(b, state, save) {
   if (b.vendor === 'herald') return routeHeraldTalk(b, state, save);
   if (b.vendor === 'hutkeeper') return routeHutkeeperTalk(b, state, save);
   if (b.vendor === 'wiseman') return routeWiseManTalk(b, state, save);
+  if (b.vendor === 'hermit') return routeHermitTalk(b, state, save);
+  if (b.vendor === 'monger') return routeMongerTalk(b, state, save);
   const vendor = (b.vendor === 'woodsman' || b.vendor === 'stonemason') ? b.vendor : null;
   if (!vendor) return fail('talk to whom? send vendor: "woodsman", "stonemason" or "herald"');
 
@@ -3156,6 +3170,45 @@ function areaOf(state) {
   return areaOfSave(state);
 }
 
+/** Put florins in the purse. */
+function addCoins(state, currency, amount) {
+  const p = state.player;
+  if (!isObj(p.coins)) p.coins = {};
+  p.coins[currency] = (num(p.coins[currency]) ?? 0) + Math.max(0, Math.round(amount));
+}
+
+/**
+ * Hand over a piece of passive gear, once.
+ *
+ * The same shape the crafting bench makes: `{ uid, itemId, equipped }` in
+ * `state.tools`, which is what the Bag's GEAR tab reads and what the equip
+ * routes already know how to move into a slot. A quest reward that invented its
+ * own shape would be a reward you could not wear.
+ */
+function grantTool(state, itemId) {
+  if (!Array.isArray(state.tools)) state.tools = [];
+  if (state.tools.some((t) => isObj(t) && t.itemId === itemId)) return false;
+  state.tools.push({ uid: uid('tool'), itemId, equipped: false });
+  return true;
+}
+
+/** The hermit's errand, seeded lazily so older saves walk into it. */
+function hermitOf(state) {
+  if (!isObj(state.hermit)) state.hermit = {};
+  const h = state.hermit;
+  for (const k of ['spoken', 'monger', 'paid']) {
+    if (typeof h[k] !== 'boolean') h[k] = false;
+  }
+  return h;
+}
+
+/** Are we down the cheese cave? Its own map, like a floor of the Keep. */
+function caveOf(state) {
+  if (!isObj(state.cave)) state.cave = { in: false };
+  if (typeof state.cave.in !== 'boolean') state.cave.in = false;
+  return state.cave;
+}
+
 function wiseManOf(state) {
   if (!isObj(state.wiseMan)) state.wiseMan = { found: false, spoken: false, returned: false };
   // `returned` is v10: he has read the Codex and opened the road west. Seeded
@@ -3293,6 +3346,172 @@ function routeBoatBoard(b, state, save) {
   pushLog(state, 'You climb out onto the bank. The boat stays where you left her.', 'gather');
   save(state);
   return ok({ state, riding: false, boat: { x: bx, y: by }, at: { x: tx, y: ty } });
+}
+
+/**
+ * POST /api/npc/talk with vendor "hermit" — the man at the end of the Summit.
+ *
+ * He was a client-side easter egg with no server round trip, which was right
+ * when he changed nothing. He gives you ten florins now, so he is state.
+ */
+function routeHermitTalk(b, state, save) {
+  if (areaOf(state) !== AREAS.peaks) return fail('he is at the end of the Summit.');
+  const pos = playerPosition(b, state);
+  if (Math.max(Math.abs(pos.x - CHEESECAKE_HERMIT.x), Math.abs(pos.y - CHEESECAKE_HERMIT.y)) > 2) {
+    return fail(`he is at ${CHEESECAKE_HERMIT.x},${CHEESECAKE_HERMIT.y} — you are at ${pos.x},${pos.y}.`);
+  }
+  const h = hermitOf(state);
+  const items = questItemsOf(state);
+  const scene = (name, lines, objective) => ({ stage: 'opening', name, lines: lines.slice(), objective: objective || null });
+
+  // 1. THE LECTURE, AND THE ASK. One conversation: the joke earns the errand,
+  //    and splitting them over two visits would make you climb twice for it.
+  if (!h.spoken) {
+    h.spoken = true;
+    addCoins(state, 'florin', CHEESE_CAVE.price);
+    pushLog(state, `New objective — ${CHEESECAKE_ASK.objective}`, 'quest');
+    save(state);
+    return ok({
+      state,
+      vendor: 'hermit',
+      dialogue: scene(CHEESECAKE_ASK.name,
+        CHEESECAKE_DIALOGUE.lines.concat(CHEESECAKE_ASK.lines), CHEESECAKE_ASK.objective),
+      florins: CHEESE_CAVE.price,
+    });
+  }
+
+  // 2. YOU HAVE THE CHEESE. He bakes, and he has been making you a hat.
+  if ((num(items.summit_cheese) ?? 0) > 0 && !h.paid) {
+    items.summit_cheese = 0;
+    delete items.summit_cheese;
+    h.paid = true;
+    grantTool(state, 'cheesecake_helm');
+    const xp = completeQuest(state, 'cheesecake_baked', 'the hermit has baked, and you have eaten a slice');
+    pushLog(state, 'THE CHEESECAKE HELM — he made it himself, and he had a lot of time.', 'quest');
+    save(state);
+    return ok({ state, vendor: 'hermit', xp, gear: 'cheesecake_helm',
+      dialogue: scene(CHEESECAKE_PAID.name, CHEESECAKE_PAID.lines, null) });
+  }
+
+  // 3. before and after.
+  const lines = h.paid
+    ? [
+      'He is asleep beside the fire with the tin on his chest.',
+      'There is a slice left. He meant it for you; it has your name scratched into the '
+        + 'snow beside it, spelled wrong.',
+    ]
+    : [
+      '"West," he says, without looking up from the pan. "The burnt ground. There is a cave '
+        + 'and there is a man in it and he has the cheese."',
+      '"Take a LANTERN. I cannot stress that enough."',
+    ];
+  return ok({ state, vendor: 'hermit', dialogue: { stage: 'open', name: CHEESECAKE_ASK.name, lines, objective: null }, xp: 0 });
+}
+
+/**
+ * POST /api/cave/enter and /api/cave/leave — the cheese cave.
+ *
+ * The warren is its own full-size map, exactly as a floor of the Keep is, and
+ * `cave.in` is the whole of the state that says so. Going in and coming out are
+ * TELEPORTS the server owns, for the same reason climbing a stair is: where you
+ * land is a fact about the world rather than about the keypress.
+ */
+function routeCaveEnter(b, state, save) {
+  if (areaOf(state) !== AREAS.farlands) return fail('there is no cave here.');
+  const cave = caveOf(state);
+  if (cave.in) return fail('you are already inside it.');
+  const pos = playerPosition(b, state);
+  const m = CHEESE_CAVE.mouth;
+  if (Math.max(Math.abs(pos.x - m.x), Math.abs(pos.y - m.y)) > 1) {
+    return fail(`the cave mouth is at ${m.x},${m.y} — you are at ${pos.x},${pos.y}.`);
+  }
+  cave.in = true;
+  state.player.x = CHEESE_CAVE.entry.x;
+  state.player.y = CHEESE_CAVE.entry.y;
+  pushLog(state, 'The cold comes up out of the dark and the daylight stops about a pace in.', 'quest');
+  save(state);
+  return ok({ state, inside: true, at: { ...CHEESE_CAVE.entry } });
+}
+
+function routeCaveLeave(b, state, save) {
+  const cave = caveOf(state);
+  if (!cave.in) return fail('you are not in the cave.');
+  const pos = playerPosition(b, state);
+  const h = hermitOf(state);
+  const onEntry = pos.x === CHEESE_CAVE.entry.x && pos.y === CHEESE_CAVE.entry.y;
+  const onExit = pos.x === CHEESE_CAVE.exit.x && pos.y === CHEESE_CAVE.exit.y;
+  if (!onEntry && !onExit) return fail('there is no way out from here.');
+  // THE FAR EXIT ONLY WORKS ONCE YOU HAVE REACHED HIM — it is the door his end
+  // of the warren opens, not a second entrance.
+  if (onExit && !h.monger) return fail('the rock is solid here.');
+  cave.in = false;
+  const out = onExit ? CHEESE_CAVE.door : CHEESE_CAVE.mouth;
+  state.player.x = out.x;
+  state.player.y = out.y;
+  save(state);
+  return ok({ state, inside: false, at: { ...out }, shortcut: onExit });
+}
+
+/**
+ * POST /api/npc/talk with vendor "monger" — the man at the end of the warren.
+ *
+ * Reaching him is what opens the door beside the cave mouth, whether or not you
+ * buy anything: the walk was the puzzle and you have solved it.
+ */
+function routeMongerTalk(b, state, save) {
+  if (!caveOf(state).in) return fail('he is at the end of the cave.');
+  const pos = playerPosition(b, state);
+  const m = CHEESE_CAVE.monger;
+  if (Math.max(Math.abs(pos.x - m.x), Math.abs(pos.y - m.y)) > 2) {
+    return fail(`he is at ${m.x},${m.y} — you are at ${pos.x},${pos.y}.`);
+  }
+  const h = hermitOf(state);
+  const first = !h.monger;
+  let xp = 0;
+  if (first) {
+    h.monger = true;
+    // grantXp answers with a record; the route reports the NUMBER, like every
+    // other route that pays out.
+    xp = (grantXp(state, 120, 'found the cheesemonger at the end of the warren') || {}).xp || 120;
+    pushLog(state, 'A way out has opened beside the cave mouth.', 'quest');
+    save(state);
+  }
+  const items = questItemsOf(state);
+  const bought = (num(items.summit_cheese) ?? 0) > 0;
+  const florins = num(state.player.coins.florin) ?? 0;
+  return ok({
+    state,
+    vendor: 'monger',
+    xp,
+    price: CHEESE_CAVE.price,
+    canBuy: !bought && florins >= CHEESE_CAVE.price,
+    bought,
+    dialogue: {
+      stage: first ? 'opening' : 'open',
+      name: MONGER_DIALOGUE.name,
+      lines: first ? MONGER_DIALOGUE.lines.slice()
+        : (bought ? MONGER_DIALOGUE.after.slice() : MONGER_DIALOGUE.again.slice()),
+      objective: null,
+    },
+  });
+}
+
+/** POST /api/cheese/buy — ten florins, and he does not haggle. */
+function routeCheeseBuy(b, state, save) {
+  if (!caveOf(state).in) return fail('he is at the end of the cave.');
+  const h = hermitOf(state);
+  if (!h.monger) return fail('you have not found him yet.');
+  const items = questItemsOf(state);
+  if ((num(items.summit_cheese) ?? 0) > 0) return fail('you already have his cheese.');
+  const have = num(state.player.coins.florin) ?? 0;
+  if (have < CHEESE_CAVE.price) {
+    return fail(`he wants ${CHEESE_CAVE.price} florins and you have ${have}. He has not moved on the price in thirty years.`);
+  }
+  state.player.coins.florin = have - CHEESE_CAVE.price;
+  items.summit_cheese = 1;
+  pushLog(state, 'A ROUND OF FARLANDS CHEESE. Keep it cold.', 'quest');
+  save(state);
+  return ok({ state, bought: true, spent: CHEESE_CAVE.price });
 }
 
 /** POST /api/npc/talk with vendor "wiseman". */

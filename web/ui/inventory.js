@@ -6,6 +6,7 @@
 //
 // Exactly one <style> tag, every selector namespaced .sq-inv-*.
 
+import { activeQuests } from '../../shared/quests.js';
 import {
   PALETTE_V3,
   RARITIES,
@@ -63,6 +64,7 @@ const BLOCK_FALLBACK = {
 // The search box spans whichever tab is open, which is what makes one long
 // ITEMS list workable.
 const TABS = [
+  { id: 'quests', label: 'QUESTS', key: 'quests' },
   { id: 'items', label: 'ITEMS', key: 'materials' },
   { id: 'gear', label: 'GEAR', key: 'gear' },
   { id: 'relics', label: 'RELICS', key: 'relics' },
@@ -151,6 +153,32 @@ function injectStyle() {
 .sq-inv-crar { font-size: 8px; letter-spacing: .16em; margin-top: 3px; }
 
 /* --- rows (gadgets, blocks, tools, gear) ------------------------------ */
+/* ---- the quest tab: an errand, and the one line that matters --------- */
+.sq-inv-quest { padding: 14px 16px; }
+.sq-inv-quest-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
+.sq-inv-quest-name { font-size: 13px; font-weight: 700; letter-spacing: .05em; color: var(--sq-gold); }
+.sq-inv-quest-tag, .sq-inv-quest-tag-done {
+  font-size: 10px; letter-spacing: .12em; white-space: nowrap;
+}
+.sq-inv-quest-tag { color: var(--sq-text-dim); }
+.sq-inv-quest-tag-done { color: var(--sq-good); }
+.sq-inv-quest-giver {
+  font-size: 10px; letter-spacing: .11em; text-transform: uppercase;
+  color: var(--sq-text-dim); margin-top: 3px;
+}
+.sq-inv-quest-blurb { font-size: 11.5px; line-height: 1.55; color: var(--sq-text-dim); margin: 8px 0 10px; }
+.sq-inv-quest-steps { list-style: none; margin: 0; padding: 0; display: grid; gap: 5px; }
+.sq-inv-quest-step {
+  display: grid; grid-template-columns: 16px 1fr; gap: 7px;
+  font-size: 11.5px; line-height: 1.5; color: var(--sq-text-dim);
+}
+.sq-inv-quest-mark { text-align: center; }
+/* DONE steps are the trail behind you: struck through and quiet. */
+.sq-inv-quest-step.is-done { opacity: .5; text-decoration: line-through; }
+/* ...and the current one is the whole point of opening the tab. */
+.sq-inv-quest-step.is-now { color: var(--sq-text); font-weight: 600; text-decoration: none; opacity: 1; }
+.sq-inv-quest-step.is-now .sq-inv-quest-mark { color: var(--sq-gold); }
+.sq-inv-quest-done .sq-inv-quest-name { color: var(--sq-good); }
 .sq-inv-rows { display: grid; gap: 10px; }
 .sq-inv-row {
   display: flex; gap: 14px; align-items: center; padding: 12px 14px;
@@ -1177,6 +1205,46 @@ export function createInventory(root, api) {
     body.appendChild(rows);
   }
 
+  /**
+   * THE QUEST TAB — the errands people have given you, and where each stands.
+   *
+   * Not the Task Log: that is real coursework and lives on [T]. These are
+   * conversations somebody started, and what a player needs from them is one
+   * line — what am I supposed to be doing — so the current step is the loud
+   * thing and the rest is the trail behind it.
+   */
+  function renderQuests() {
+    const list = activeQuests(state || {}).filter((q) => matches(q.name) || matches(q.giver));
+    body.appendChild(rule('QUESTS', 'quests'));
+    if (!list.length) {
+      body.appendChild(el('div', 'sq-theme-empty',
+        'Nobody has asked you for anything yet. They will.'));
+      return;
+    }
+    const rows = el('div', 'sq-inv-rows');
+    for (const q of list) {
+      const card = el('div', 'sq-theme-card sq-inv-quest');
+      if (q.complete) card.classList.add('sq-inv-quest-done');
+      const head2 = el('div', 'sq-inv-quest-head');
+      head2.appendChild(el('div', 'sq-inv-quest-name', q.name));
+      head2.appendChild(el('div', q.complete ? 'sq-inv-quest-tag-done' : 'sq-inv-quest-tag',
+        q.complete ? 'COMPLETE' : `${q.doneCount}/${q.total}`));
+      card.appendChild(head2);
+      card.appendChild(el('div', 'sq-inv-quest-giver', q.giver));
+      card.appendChild(el('div', 'sq-inv-quest-blurb', q.blurb));
+      const steps = el('ol', 'sq-inv-quest-steps');
+      for (const st of q.steps) {
+        const li = el('li', `sq-inv-quest-step${st.done ? ' is-done' : ''}${st.current ? ' is-now' : ''}`);
+        li.appendChild(el('span', 'sq-inv-quest-mark', st.done ? '✓' : (st.current ? '▸' : '·')));
+        li.appendChild(el('span', null, st.text));
+        steps.appendChild(li);
+      }
+      card.appendChild(steps);
+      rows.appendChild(card);
+    }
+    body.appendChild(rows);
+  }
+
   function renderRelics() {
     const list = relicList().filter((r) => matches(r.name || r.id));
     // Only claim the tab is empty if it really is. This used to say "No relics"
@@ -1300,6 +1368,7 @@ export function createInventory(root, api) {
         renderRelics();
       }
       else if (tab === 'boxes') renderBoxes();
+      else if (tab === 'quests') renderQuests();
     } catch (err) {
       if (typeof console !== 'undefined') console.error('[sq-inv] render', err);
       body.textContent = '';

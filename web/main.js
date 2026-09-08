@@ -206,6 +206,9 @@ const api = {
   pushBoulder: (x, y, dx, dy) => post('/api/reaches/push', { x, y, dx, dy }),
   wardenReset: () => post('/api/reaches/reset', {}),
   openDoor: () => post('/api/door/open', {}),
+  caveEnter: () => post('/api/cave/enter', {}),
+  caveLeave: () => post('/api/cave/leave', {}),
+  buyCheese: () => post('/api/cheese/buy', {}),
   throwSwitch: (id) => post('/api/switch/throw', { id }),
   wardenBeaten: () => post('/api/reaches/warden', {}),
   travel: () => post('/api/travel'),
@@ -590,9 +593,42 @@ game.onInteract = async (buildingId) => {
     if (!r.already) game.toast(r.text || 'the winch turns', '#e8b64c');
     return r;
   }
-  if (buildingId === '__cheesecake') {
-    dialogue.show(CHEESECAKE_DIALOGUE.lines.slice(), { name: CHEESECAKE_DIALOGUE.name });
+  // THE HERMIT IS STATE NOW. He was a client-only easter egg, which was right
+  // while he changed nothing; he hands over ten florins and a helmet, so the
+  // server owns what he has said and what he has given.
+  if (buildingId === '__cheesecake') { await commitPosition(); speakTo('hermit', null); return; }
+  /**
+   * THE CHEESEMONGER. First E is the conversation; a second E buys.
+   *
+   * He is not a building, so there is no counter to open — and a man with one
+   * item at one price does not need a shop panel. Talk, then press again.
+   */
+  if (buildingId === '__monger') {
+    await commitPosition();
+    const found = !!(state && state.hermit && state.hermit.monger);
+    const hasCheese = Number((state && state.questItems && state.questItems.summit_cheese) || 0) > 0;
+    if (found && !hasCheese) {
+      const r = await api.buyCheese();
+      if (!r || !r.ok) { game.toast((r && r.error) || 'he will not sell', '#e2654a'); return r; }
+      game.toast(`A ROUND OF FARLANDS CHEESE — ${r.spent} florins`, '#e8c86a');
+      return r;
+    }
+    speakTo('monger', null);
     return;
+  }
+  if (buildingId === '__cave') {
+    await commitPosition();
+    const r = await api.caveEnter();
+    if (!r || !r.ok) { game.toast((r && r.error) || 'there is no way down here', '#a494c4'); return r; }
+    game.toast('down into the dark', '#a494c4');
+    return r;
+  }
+  if (buildingId === '__caveout') {
+    await commitPosition();
+    const r = await api.caveLeave();
+    if (!r || !r.ok) { game.toast((r && r.error) || 'the rock is solid here', '#a494c4'); return r; }
+    game.toast(r.shortcut ? 'out by the cave mouth' : 'back into the daylight', '#ffd93d');
+    return r;
   }
   if (buildingId === '__travel') {
     await commitPosition();
@@ -735,7 +771,10 @@ window.addEventListener('keydown', (e) => {
     }
     return;
   }
-  if (k === 'q') { e.preventDefault(); toggle('tasks'); }
+  // T FOR TASKS. This panel is real coursework — homework with a payout — and
+  // it wore the name "Quests" until quests became a thing of their own: NPC
+  // errands with dialogue, kept in the Bag. Q was freed with the name.
+  if (k === 't') { e.preventDefault(); toggle('tasks'); }
   if (k === 'tab') { e.preventDefault(); toggle('inventory'); }
   // J for journal. The panel refuses to open until the Codex is in the pack,
   // and says why — see `setOnDenied` below.

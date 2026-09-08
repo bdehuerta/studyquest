@@ -191,6 +191,9 @@ export const MATERIAL_IDS = Object.freeze([
 export const TOOL_IDS = Object.freeze([
   'focus_lamp', 'quill_of_clarity', 'grindstone', 'insight_lens',
   'chrono_hourglass', 'sparkforge_hammer',
+  // v10 — worn, not carried, and the only piece of gear in the game you cannot
+  // buy, craft or find. Somebody made it for you.
+  'cheesecake_helm',
   // v2 gathering tools — these have durability and act on the world
   'axe', 'pickaxe', 'dredge', 'sifter',
 ]);
@@ -629,6 +632,18 @@ export const QUEST_ITEMS = Object.freeze({
     color: '#8f6fc4',
     desc: 'A heavy signet, the crest filed flat and re-cut. Cold in a way the Reaches never '
       + 'managed. Hold it against a written page and the writing changes its mind.',
+  }),
+  /**
+   * A ROUND OF CHEESE, bought in a cave for ten florins from a man who has not
+   * sold one in years and has not lowered his price by a copper.
+   */
+  summit_cheese: Object.freeze({
+    id: 'summit_cheese',
+    name: 'A Round of Farlands Cheese',
+    symbol: '◍',
+    color: '#e8c86a',
+    desc: 'Hard, pale, and wrapped in cloth that has been re-used. Heavier than it looks. '
+      + 'The hermit will want to know it was kept cold.',
   }),
   /**
    * TWO PAGES OUT OF THE FARLANDS, and the reason the Codex's damaged half
@@ -1908,6 +1923,130 @@ export const WISE_MAN = Object.freeze({ x: 58, y: 2 });
  */
 export const CHEESECAKE_HERMIT = Object.freeze({ x: 3, y: 4 });
 
+/**
+ * THE CHEESE CAVE, in the burnt ground west of everything.
+ *
+ * Built the way the Keep is: the warren is its OWN full-size map, so collision,
+ * the camera and the tile loop never learn that a cave exists. What differs is
+ * the light — the Keep greys the world out around a lit room, and this does not
+ * light anything. It is the Stonemason's dark, and the lantern is the only
+ * reason you can see the corridor you are standing in.
+ *
+ * `mouth` is the tile you press E on, out on the moor. `hollow` is the bowl of
+ * dark ground around it, so the cave announces itself before you are in it —
+ * the same trick the Home Block's cave uses, and the reason you do not walk
+ * onto a hole in the floor by accident.
+ */
+export const CHEESE_CAVE = Object.freeze({
+  /** The mouth, on the Farlands road so it cannot be missed. */
+  mouth: Object.freeze({ x: 34, y: 43 }),
+  /** The dark bowl of cave ground around the mouth, outside. */
+  hollow: Object.freeze({ x0: 30, y0: 39, x1: 38, y1: 46 }),
+  /**
+   * THE DOOR BESIDE THE MOUTH. Solid until you have reached the far end, and
+   * then it is where you come out — the walk back is a walk back, not the
+   * labyrinth in reverse. A maze is a puzzle once and a corridor after that.
+   */
+  door: Object.freeze({ x: 36, y: 42 }),
+  /* --- inside. Odd coordinates, because the warren is carved on odd cells. --- */
+  /** Where you arrive, bottom-left, as far from him as the map allows. */
+  entry: Object.freeze({ x: 3, y: 45 }),
+  /** The cheesemonger, at the top right of it. */
+  monger: Object.freeze({ x: 59, y: 3 }),
+  /** The way out, beside him, once you have got that far. */
+  exit: Object.freeze({ x: 57, y: 3 }),
+  /** What the cheese costs, and he has not moved on it in thirty years. */
+  price: 10,
+});
+
+/**
+ * WHAT HE ASKS FOR, once he has finished the lecture.
+ *
+ * The quest is an errand, not a fetch: he gives you the money, names the price,
+ * and is quite clear that he is not coming with you.
+ */
+export const CHEESECAKE_ASK = Object.freeze({
+  name: 'A Man at the End of the Summit',
+  lines: Object.freeze([
+    'He stops, halfway through the part about the water bath, and looks at you properly for '
+      + 'the first time.',
+    '"You came UP here," he says. "On purpose. Nobody comes up here."',
+    'He turns the pan off the fire and sits back on his heels.',
+    '"Then I will ask, and you may say no. I have the tin. I have the oven — such as it is. '
+      + 'I have thirty years of opinions. What I do not have is CHEESE, and you cannot make a '
+      + 'cheesecake out of opinions. I have tried."',
+    '"West of the green country, out on the burnt ground, there is a man in a cave who makes '
+      + 'the right kind. Hard, pale, ages in the cold. He is not easy to get to — the cave is '
+      + 'a warren and it is black as the inside of a hat, so take a lantern or do not go."',
+    'He digs in the very large coat and holds out ten florins, warm from the pocket.',
+    '"Ten. That is what it costs. It has been ten for as long as I have been up here and he '
+      + 'will not move on it, so do not try to be clever with him."',
+    '"Bring it back and I will bake, and you will eat a slice of it, and then you will know '
+      + 'what I have been going on about."',
+  ]),
+  objective: 'Take the hermit\'s ten florins west into the Farlands, find the cave in the '
+    + 'burnt ground, and buy his cheese. Bring a Lantern — the cave is dark.',
+});
+
+/** What he says when you come back up with it. */
+export const CHEESECAKE_PAID = Object.freeze({
+  name: 'A Man at the End of the Summit',
+  lines: Object.freeze([
+    'He takes the cloth off it before you have finished handing it over, and smells it, and '
+      + 'says nothing for a while.',
+    '"Kept cold," he says. "You kept it cold. I did not ask you to and you did it anyway."',
+    'The pan comes back onto the fire. What happens next takes considerably longer than you '
+      + 'expected and involves a great deal of muttering about temperature.',
+    'It is, when it is finally done and has sat in the snow for the length of a conversation '
+      + 'neither of you needed to have, extremely good.',
+    '"Baked," he says, with his mouth full, entirely vindicated. "BAKED."',
+    'He wipes his hands and produces, from somewhere in the coat, a helmet.',
+    'It is a cheesecake. Someone has made a helmet that is a cheesecake — biscuit brim, set '
+      + 'custard crown, a glazed cherry on the top of it — and it is, unmistakably, made to '
+      + 'be worn.',
+    '"I had a lot of time," he says, "and only the one idea."',
+  ]),
+  objective: null,
+});
+
+/**
+ * THE CHEESEMONGER, at the end of a warren nobody walks.
+ *
+ * He is not a hermit and he is not mad. He is a man with a business, in the one
+ * cold dry place for a hundred miles, who has been waiting a very long time for
+ * a customer and is determined not to appear to have been.
+ */
+export const MONGER_DIALOGUE = Object.freeze({
+  name: 'The Cheesemonger',
+  lines: Object.freeze([
+    'The corridor opens without warning into a room, and the room is full of shelves, and '
+      + 'the shelves are full of cheese.',
+    'A man is turning one of the rounds a quarter-turn, the way you would a sleeping child. '
+      + 'He does not look up.',
+    '"Took you long enough."',
+    'He sets it down. "Forty years I have been down here. Cold, dry, no light — you could '
+      + 'not build a better cellar if you spent a fortune, and the twelve families would not '
+      + 'let me build anything anyway. So I came down. Nobody minded."',
+    'He finally looks at you, and something in his face gives him away entirely.',
+    '"Ten florins," he says, much too quickly. "Same as it has always been. I am not coming '
+      + 'down and I am not going up, before you start."',
+    'Behind him, set into the rock, there is a door you did not come in by. He sees you '
+      + 'notice it. "Yes. It goes out by the mouth. I am not making you walk that twice."',
+  ]),
+  /** Coming back before you have bought anything. */
+  again: Object.freeze([
+    '"Still ten," he says, turning a round a quarter-turn. "It was ten yesterday."',
+    '"The door behind me goes out by the mouth. Use it."',
+  ]),
+  /** ...and after. */
+  after: Object.freeze([
+    'He has gone back to turning the rounds, and is whistling, badly, and stops the moment '
+      + 'he notices you are still there.',
+    '"Keep it COLD," he says. "Whoever it is for — and I have a fair idea who it is for — '
+      + 'tell him the water bath makes no difference and he knows it."',
+  ]),
+});
+
 export const CHEESECAKE_DIALOGUE = Object.freeze({
   name: 'A Man at the End of the Summit',
   lines: Object.freeze([
@@ -2030,6 +2169,12 @@ export const QUEST_XP = Object.freeze({
   // ELDERWATCH. Getting in is worth something; getting the Standard out is worth
   // the rest of the story.
   culvert_broken: 150,
+  /**
+   * THE CHEESECAKE. Four terraces, a maze in the dark and ten florins of
+   * somebody else's money, for a pudding. Bruno set it at 500 — the same order
+   * as the errands that decide a kingdom, which is the joke paid out in xp.
+   */
+  cheesecake_baked: 500,
   /** The Farlands' two pages. Paper is worth what it lets you read. */
   requisition_taken: 260,
   levy_roll_taken: 340,

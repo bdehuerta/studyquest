@@ -4,7 +4,7 @@
 
 import { buildReaches as buildReachesMap } from './reaches.js';
 import { buildElderwatch as buildElderwatchMap, buildTowerFloor } from './elderwatch.js';
-import { buildFarlands as buildFarlandsMap } from './farlands.js';
+import { buildFarlands as buildFarlandsMap, buildCheeseCave } from './farlands.js';
 import {
   TILE,
   WORLD_W,
@@ -23,7 +23,7 @@ import {
   EAST_ROAD, AREA_PUZZLES, bouldersFor, platesFor,
   ELDERWATCH, ELDERWATCH_WATCH, crossingAt, crossingRows, questSitesFor, DOOR_KEYS, QUEST_ITEMS,
   AREA_NAMES, CROSSINGS, areaOfSave,
-  CHEESECAKE_HERMIT, ELDERWATCH_SWITCHES,
+  CHEESECAKE_HERMIT, ELDERWATCH_SWITCHES, CHEESE_CAVE,
   TOWER, TOWER_FLOORS,
   WARDEN, WISE_CAVE,
   HUT,
@@ -722,6 +722,9 @@ export function createGame(canvas) {
    * forgotten; `tools/lib/geometry.mjs` now checks this one against AREAS.
    */
   function stateArea() { return areaOfSave(state); }
+  /** Are we down the cheese cave? Its own map, and its own dark. */
+  function stateInCave() { return !!(state && state.cave && state.cave.in); }
+  let inCheeseCave = false;
 
   /**
    * Swap the terrain if the save has moved us to the other map.
@@ -737,9 +740,15 @@ export function createGame(canvas) {
   function syncArea() {
     const want = stateArea();
     const wantFloor = want === AREAS.elderwatch ? stateFloor() : 0;
-    if (want === worldArea && wantFloor === towerFloor) return false;
+    const wantCave = want === AREAS.farlands && stateInCave();
+    if (want === worldArea && wantFloor === towerFloor && wantCave === inCheeseCave) return false;
     towerFloor = wantFloor;
-    if (towerFloor > 0) {
+    inCheeseCave = wantCave;
+    if (inCheeseCave) {
+      // THE WARREN IS ITS OWN MAP, like a floor of the Keep — see farlands.js.
+      world = buildCheeseCave(WORLD_SEED);
+      groundWorld = null;
+    } else if (towerFloor > 0) {
       if (!groundWorld) groundWorld = createWorld(WORLD_SEED, AREAS.elderwatch);
       world = buildTowerFloor(towerFloor);
     } else {
@@ -2791,6 +2800,50 @@ export function createGame(canvas) {
     return tileAtSafe(player.tileX(), player.tileY()) === TILE_TYPES.ice;
   }
 
+  /**
+   * Standing in the bowl outside the cheese cave's mouth.
+   *
+   * The dark starts a pace before the hole does, so the cave announces itself
+   * rather than being a tile you fall down — the same courtesy the Home Block's
+   * chamber extends.
+   */
+  function inCheeseHollow() {
+    if (worldArea !== AREAS.farlands || inCheeseCave) return false;
+    const H = CHEESE_CAVE.hollow;
+    const x = player.tileX();
+    const y = player.tileY();
+    return x > H.x0 && x < H.x1 && y > H.y0 && y < H.y1;
+  }
+
+  /** On or beside the cheese cave's mouth, out on the moor. */
+  function caveMouthInReach() {
+    if (worldArea !== AREAS.farlands || inCheeseCave) return false;
+    const m = CHEESE_CAVE.mouth;
+    const t = { x: player.tileX(), y: player.tileY() };
+    return Math.max(Math.abs(t.x - m.x), Math.abs(t.y - m.y)) <= 1;
+  }
+  function mongerFound() { return !!(state && state.hermit && state.hermit.monger); }
+  /**
+   * Standing on a way out of the warren.
+   *
+   * The entry always works — anyone can turn round. His door only works once
+   * you have reached him: it is the door his end of the cave opens, not a
+   * second entrance.
+   */
+  function caveWayOutInReach() {
+    if (!inCheeseCave) return false;
+    const t = { x: player.tileX(), y: player.tileY() };
+    const on = (p) => t.x === p.x && t.y === p.y;
+    return on(CHEESE_CAVE.entry) || (on(CHEESE_CAVE.exit) && mongerFound());
+  }
+  /** Close enough to the cheesemonger to be sold something. */
+  function mongerInReach() {
+    if (!inCheeseCave) return false;
+    const m = CHEESE_CAVE.monger;
+    const t = { x: player.tileX(), y: player.tileY() };
+    return Math.max(Math.abs(t.x - m.x), Math.abs(t.y - m.y)) <= 2;
+  }
+
   /** Inside the summit cave — dark, like the Stonemason's. */
   function inWiseCave() {
     if (worldArea !== AREAS.peaks) return false;
@@ -2946,6 +2999,9 @@ export function createGame(canvas) {
       // After the dialogue check, so E still pages through what he is saying.
       if (heraldInReach()) { fireInteract('__herald'); return; }
       if (hermitInReach()) { fireInteract('__cheesecake'); return; }
+      if (mongerInReach()) { fireInteract('__monger'); return; }
+      if (caveMouthInReach()) { fireInteract('__cave'); return; }
+      if (caveWayOutInReach()) { fireInteract('__caveout'); return; }
       {
         const lock = lockHere();
         const f3 = player.facingTile();
@@ -3530,7 +3586,11 @@ export function createGame(canvas) {
   let darkLayer = null;
 
   function drawDarkness(g, camX, camY, S) {
-    const want = ((worldArea === AREAS.home && playerInCave()) || inWiseCave())
+    // THE CHEESE WARREN IS DARK LIKE THE OTHERS, and that is the whole of its
+    // difficulty: a maze you can see is a diagram. The lantern is the only
+    // light down here, and the cave mouth says so before you go in.
+    const want = ((worldArea === AREAS.home && playerInCave())
+      || inWiseCave() || inCheeseCave || inCheeseHollow())
       ? CAVE_DARKNESS : 0;
     darkAlpha += (want - darkAlpha) * 0.14;
     if (Math.abs(darkAlpha - want) < 0.005) darkAlpha = want;
@@ -3995,6 +4055,14 @@ export function createGame(canvas) {
           kind: 'v', ref: { x: sw.x, y: sw.y, thrown: switchThrown(sw.id) },
         });
       }
+      if (inCheeseCave) {
+        // Him and his shelves, at the end of it. Borrowing the Wise Man's art:
+        // two men who went underground and stayed is the joke, not an oversight.
+        drawables.push({
+          sortY: (CHEESE_CAVE.monger.y + 1) * TILE,
+          kind: 'o', ref: CHEESE_CAVE.monger,
+        });
+      }
       if (worldArea === AREAS.peaks) {
         drawables.push({
           sortY: (WISE_MAN.y + 1) * TILE - liftAt(WISE_MAN.x, WISE_MAN.y),
@@ -4384,6 +4452,34 @@ export function createGame(canvas) {
       lastPrompts.push(label);
     }
 
+    if (mongerInReach()) {
+      const m = CHEESE_CAVE.monger;
+      const label = 'E  the cheesemonger';
+      const w2 = textWidth(label, ts);
+      const mx = clampToCanvas(Math.round((m.x * TILE + TILE / 2 - camX) * S - w2 / 2), w2);
+      const my = Math.round((m.y * TILE - camY) * S) - 14 * S;
+      drawTextOutlined(ctx, label, mx, my, ts, PALETTE.accent, '#0d0f16');
+      lastPrompts.push(label);
+    }
+    if (caveMouthInReach()) {
+      const m = CHEESE_CAVE.mouth;
+      // SAY THAT IT IS DARK. The one thing a player must know before going in is
+      // the one thing they cannot see from out here.
+      const label = 'E  go down — it is dark inside';
+      const w2 = textWidth(label, ts);
+      const mx = clampToCanvas(Math.round((m.x * TILE + TILE / 2 - camX) * S - w2 / 2), w2);
+      const my = Math.round((m.y * TILE - camY) * S) - 14 * S;
+      drawTextOutlined(ctx, label, mx, my, ts, PALETTE.accent, '#0d0f16');
+      lastPrompts.push(label);
+    }
+    if (caveWayOutInReach()) {
+      const label = 'E  climb out';
+      const w2 = textWidth(label, ts);
+      const cx2 = clampToCanvas(Math.round((player.centerX() - camX) * S - w2 / 2), w2);
+      const cy2 = Math.round((player.py - camY) * S) - 16 * S;
+      drawTextOutlined(ctx, label, cx2, cy2, ts, PALETTE.accent, '#0d0f16');
+      lastPrompts.push(label);
+    }
     if (hermitInReach()) {
       const label = 'E  speak to the man with the fire';
       const w = textWidth(label, ts);

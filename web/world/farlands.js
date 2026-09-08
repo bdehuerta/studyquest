@@ -15,7 +15,7 @@
 
 import {
   WORLD_W, WORLD_H, TILE_TYPES,
-  crossingRows,
+  crossingRows, CHEESE_CAVE,
 } from '../../shared/constants.js';
 
 const T = TILE_TYPES;
@@ -88,6 +88,30 @@ export function buildFarlands(seed) {
     for (let x = WORLD_W - 1; x >= WORLD_W - 10; x -= 1) put(x, y, T.path);
   }
 
+  // ---- 3c. THE CHEESE CAVE'S MOUTH, and the bowl of dark ground around it.
+  //
+  //          The hollow is `rockfloor`, the same ground the Home Block's cave
+  //          is cut in, so the cave announces itself as a cave before you are
+  //          standing in it. The mouth itself is a STAIR: stepping onto it is
+  //          what takes you in, exactly as the Keep's door does, so there is
+  //          one grammar in this game for "a way in" rather than two.
+  const H = CHEESE_CAVE.hollow;
+  for (let y = H.y0; y <= H.y1; y += 1) {
+    for (let x = H.x0; x <= H.x1; x += 1) {
+      // A ring of crag around the bowl, so it reads as a hole rather than a rug.
+      const rim = x === H.x0 || x === H.x1 || y === H.y0 || y === H.y1;
+      put(x, y, rim ? T.crag : T.rockfloor);
+    }
+  }
+  // ...but never across the road: the way home has to survive the scenery.
+  for (let y = y0; y <= y1; y += 1) {
+    for (let x = H.x0; x <= H.x1; x += 1) put(x, y, T.path);
+  }
+  put(CHEESE_CAVE.mouth.x, CHEESE_CAVE.mouth.y, T.stair);
+  // The door beside the mouth that the maze opens from the inside. Solid until
+  // then — a locked door with no key, opened by arriving at the other end.
+  put(CHEESE_CAVE.door.x, CHEESE_CAVE.door.y, T.lockdoor);
+
   // ---- 4. seal it, leaving the road east open. Rock, not trees: nothing grows
   //         here.
   for (let x = 0; x < WORLD_W; x += 1) { put(x, 0, T.crag); put(x, WORLD_H - 1, T.crag); }
@@ -101,3 +125,77 @@ export function buildFarlands(seed) {
 }
 
 export default buildFarlands;
+
+/**
+ * buildCheeseCave(seed) -> { w, h, seed, tiles, layers }
+ *
+ * THE WARREN, as its own full-size map — the same trick the Keep of Elderwatch
+ * uses. Collision, the camera and the tile loop never learn that a cave exists;
+ * they are handed a map that happens to be almost entirely solid rock with
+ * corridors cut through it.
+ *
+ * What differs from the Keep is the LIGHT. A tower floor greys the world out
+ * around a lit room, so you can read the whole floor at a glance and the puzzle
+ * is timing. This lights nothing: it is the Stonemason's dark, and all you ever
+ * see is the pool the lantern makes. You cannot read a maze you cannot see, so
+ * the maze has to be walked — which is the point, and the reason the cave mouth
+ * says out loud that you should bring a lantern.
+ *
+ * A PERFECT MAZE, carved on odd cells by iterative backtracking. Perfect means
+ * exactly one route between any two points and no closed-off pockets: every
+ * corridor connects, so the monger is always reachable and nowhere in here can
+ * strand you. Deterministic from the seed, so the cave is the same cave every
+ * time you come back to it — a maze that reshuffles is not a place.
+ */
+export function buildCheeseCave(seed) {
+  const tiles = new Uint8Array(WORLD_W * WORLD_H);
+  const layers = new Uint8Array(WORLD_W * WORLD_H);
+  const idx = (x, y) => y * WORLD_W + x;
+  const put = (x, y, t) => {
+    if (x >= 0 && y >= 0 && x < WORLD_W && y < WORLD_H) tiles[idx(x, y)] = t;
+  };
+
+  // Solid rock, and the corridors are cut out of it.
+  tiles.fill(T.crag);
+
+  // A small deterministic PRNG, so the warren is the same warren every visit.
+  let n = (seed | 0) || 1;
+  const rnd = () => {
+    n ^= n << 13; n |= 0; n ^= n >>> 17; n ^= n << 5; n |= 0;
+    return ((n >>> 0) % 100000) / 100000;
+  };
+
+  const inCell = (x, y) => x > 0 && y > 0 && x < WORLD_W - 1 && y < WORLD_H - 1;
+  const start = CHEESE_CAVE.entry;
+  const seen = new Set([`${start.x},${start.y}`]);
+  const stack = [[start.x, start.y]];
+  put(start.x, start.y, T.rockfloor);
+
+  while (stack.length) {
+    const [x, y] = stack[stack.length - 1];
+    // Neighbours two cells away, so the tile between becomes the doorway.
+    const opts = [[2, 0], [-2, 0], [0, 2], [0, -2]]
+      .map(([dx, dy]) => [x + dx, y + dy, dx, dy])
+      .filter(([nx, ny]) => inCell(nx, ny) && !seen.has(`${nx},${ny}`));
+    if (!opts.length) { stack.pop(); continue; }
+    const [nx, ny, dx, dy] = opts[Math.floor(rnd() * opts.length) % opts.length];
+    put(x + dx / 2, y + dy / 2, T.rockfloor);
+    put(nx, ny, T.rockfloor);
+    seen.add(`${nx},${ny}`);
+    stack.push([nx, ny]);
+  }
+
+  // The two things that are not corridor: where he stands, and the way out
+  // beside him. Both are carved regardless of what the maze did, and joined to
+  // it, so neither can end up walled off by an unlucky seed.
+  const { monger, exit } = CHEESE_CAVE;
+  put(monger.x, monger.y, T.rockfloor);
+  put(exit.x, exit.y, T.stair);
+  put((monger.x + exit.x) / 2, monger.y, T.rockfloor);
+
+  // ...and the entry is a stair too: stepping onto it is how you leave the way
+  // you came, for anybody who turns round before finding him.
+  put(start.x, start.y, T.stair);
+
+  return { w: WORLD_W, h: WORLD_H, seed: seed | 0, tiles, layers };
+}

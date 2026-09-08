@@ -309,14 +309,18 @@ export default {
 
     { type: 'note', text: 'THE KEEP. Four floors, and the map greys out around each one.' },
     {
+      // ONE TILE BELOW THE STAIR, not two.
+      //
+      // Lengthening the hold did not fix this — it flaked at 900ms and again at
+      // 1600ms, because the failure is not the duration, it is that a loaded
+      // machine can drop most of a hold's frames and she covers no ground at
+      // all. Standing her on the tile below means a single step is enough, so
+      // the test survives a bad second without weakening what it asserts:
+      // STEPPING ONTO A STAIR IS WHAT CLIMBS IT, which is still what happens.
       type: 'eval', label: 'walk to the tower door',
-      expr: "window.__sqWorld.setPlayerTile(37, 37); return 'ok';",
+      expr: "window.__sqWorld.setPlayerTile(37, 36); return 'ok';",
     },
     { type: 'wait', ms: 500 },
-    // 1600ms, not 900: she has two tiles to cover and the hold is the only
-    // thing pushing her. Under a loaded machine 900ms sometimes ended a step
-    // short of the stair and the climb never fired — the assertion was right
-    // and the walk was too brief.
     { type: 'hold', key: 'w', ms: 1600, label: 'in through the door' },
     {
       type: 'waitFor', timeoutMs: 8000, label: 'the Guardroom, floor one',

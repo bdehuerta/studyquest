@@ -422,7 +422,9 @@ export function createTasks(root, api) {
   scrim.appendChild(panel);
 
   const head = el('div', 'sq-theme-head');
-  const headTitle = el('div', 'sq-theme-title', 'QUEST LOG');
+  // TASK LOG. Real coursework — the errands NPCs give you are Quests now, and
+  // they live in the Bag. See shared/quests.js.
+  const headTitle = el('div', 'sq-theme-title', 'TASK LOG');
   const headSub = el('div', 'sq-theme-sub', '');
   head.appendChild(headTitle);
   head.appendChild(headSub);
@@ -511,7 +513,7 @@ export function createTasks(root, api) {
 
   fAdd.addEventListener('click', async () => {
     const title = String(fTitle.value || '').trim();
-    if (!title) { showError('Give the quest a title first.'); fTitle.focus(); return; }
+    if (!title) { showError('Give the task a title first.'); fTitle.focus(); return; }
     fAdd.disabled = true;
     try {
       const res = await api.createTask({
@@ -525,8 +527,8 @@ export function createTasks(root, api) {
       if (res && res.ok) {
         fTitle.value = '';
         if (res.state) setState(res.state);
-        say('Quest accepted.', true);
-      } else showError((res && res.error) || 'Could not create that quest.');
+        say('Task accepted.', true);
+      } else showError((res && res.error) || 'Could not create that task.');
     } catch (err) {
       showError(String((err && err.message) || err));
     } finally { fAdd.disabled = false; }
@@ -667,7 +669,7 @@ export function createTasks(root, api) {
     const todo = tasks.filter((t) => t.status !== 'done');
     const done = tasks.filter((t) => t.status === 'done');
 
-    headTitle.textContent = 'QUEST LOG';
+    headTitle.textContent = 'TASK LOG';
     headSub.textContent = 'submit the work, earn the rank';
     headCount.textContent = `${todo.length} OPEN`;
 

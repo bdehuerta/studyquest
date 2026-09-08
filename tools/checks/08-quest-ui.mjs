@@ -127,7 +127,7 @@ export default {
     { type: 'wait', ms: 400 },
 
     // ------------------------------------------------------------- the list
-    { type: 'key', key: 'q', label: 'open the Quest Log (Q)' },
+    { type: 'key', key: 't', label: 'open the Task Log (T)' },
     { type: 'wait', ms: 350 },
     {
       type: 'assert', label: 'the panel wears the v3 frame, not the old flat box',
@@ -267,7 +267,7 @@ export default {
     { type: 'key', key: 'Escape', label: 'close the panel entirely' },
     { type: 'wait', ms: 300 },
     { type: 'assert', label: 'the panel really closed', expr: "const s=document.querySelector('.sq-tasks-scrim'); return !!s && s.hidden;" },
-    { type: 'key', key: 'q', label: 'reopen the Quest Log' },
+    { type: 'key', key: 't', label: 'reopen the Task Log' },
     { type: 'wait', ms: 350 },
     {
       type: 'assert', label: 'the log flags the saved draft',
@@ -294,7 +294,7 @@ export default {
     { type: 'wait', ms: 300 },
     {
       type: 'eval', label: 'make sure the quest log is open',
-      expr: "const s=document.querySelector('.sq-tasks-scrim'); if(s && s.hidden) window.dispatchEvent(new KeyboardEvent('keydown',{key:'q',bubbles:true})); return 'ok';",
+      expr: "const s=document.querySelector('.sq-tasks-scrim'); if(s && s.hidden) window.dispatchEvent(new KeyboardEvent('keydown',{key:'t',bubbles:true})); return 'ok';",
     },
     { type: 'waitFor', timeoutMs: 4000, label: 'the log is up', expr: "const s=document.querySelector('.sq-tasks-scrim'); return !!s && !s.hidden;" },
     {

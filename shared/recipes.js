@@ -207,6 +207,22 @@ export const TOOLS = Object.freeze({
     desc: 'Beats a little more out of everything: +8% to all four currencies.',
     bonus: { coinMult: { florin: 1.080 }, xpMult: 1.05 },
   },
+  /**
+   * THE CHEESECAKE HELM. Biscuit brim, set custard crown, one glazed cherry.
+   *
+   * A hermit made it out of four terraces of solitude and one idea, and it is
+   * the only gear in the game that is neither bought, crafted nor found lying
+   * about — it is given to you, once, by somebody who is pleased with you. The
+   * bonus is small and deliberately about STAMINA: it is a hat made of pudding,
+   * and pudding is for after the work.
+   */
+  cheesecake_helm: {
+    id: 'cheesecake_helm',
+    name: 'The Cheesecake Helm',
+    desc: 'Biscuit brim, set custard crown, one glazed cherry. Worn, it is very slightly '
+      + 'harder to be tired: +4 stamina, and +2% Florins because people give you things.',
+    bonus: { energyBonus: 4, coinMult: { florin: 1.02 } },
+  },
 
   // --- v2 gathering tools -------------------------------------------------
   // These carry no passive bonus; they exist to act on the world and they wear
