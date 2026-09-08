@@ -280,6 +280,19 @@ export const CODEX_ENTRIES = Object.freeze([
       + 'was catalogued.',
     known: (s) => hasCodexBook(s) && hasRing(s),
   }),
+  /**
+   * AND WHAT YOU DID WITH IT. Written into the Rules of the World because that
+   * is what it is — not a plot point but a fact about how this place works, and
+   * one the player established personally.
+   */
+  Object.freeze({
+    id: 'the_hand_that_signs', category: 'rule', name: 'The Hand That Signs',
+    flavour: 'Ranon kept twelve families nine miles apart for forty years using nothing '
+      + 'heavier than a signature, and you brought them back together in eleven days using '
+      + 'the same one. The paper did not care either time; it went where it was pointed. '
+      + 'Ilsa said she would think hard about who is pointing it, and then said goodnight.',
+    known: (s) => !!obj(obj(s).farlands).recall,
+  }),
 ]);
 
 /** The sections, in display order, with the heading each one wears. */

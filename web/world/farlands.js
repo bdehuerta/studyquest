@@ -100,9 +100,27 @@ export function buildFarlands(seed) {
   //          rock and a hole. The two tiles of cave floor inside the hole are
   //          all you get, and they are dark, so the mouth reads as somewhere
   //          that goes back rather than somewhere that stops.
+  //          ROUNDED, not a box. Bruno: "can you make the mountain where the
+  //          stairs and the door to the labyrinth in the farlands a bit more
+  //          rounder or at least with softer edges in stone?" A rectangle of
+  //          crag reads as a building somebody put there; rock does not have
+  //          corners. So the mass is an ELLIPSE, and its edge is roughened by
+  //          the same deterministic scatter the rest of the map uses, which
+  //          keeps it a hill rather than a stadium.
   const H = CHEESE_CAVE.hollow;
-  for (let y = H.y0; y <= H.y1; y += 1) {
-    for (let x = H.x0; x <= H.x1; x += 1) put(x, y, T.crag);
+  const cx = (H.x0 + H.x1) / 2;
+  const cy = (H.y0 + H.y1) / 2;
+  const rx = (H.x1 - H.x0) / 2 + 0.5;
+  const ry = (H.y1 - H.y0) / 2 + 0.5;
+  for (let y = H.y0 - 1; y <= H.y1 + 1; y += 1) {
+    for (let x = H.x0 - 1; x <= H.x1 + 1; x += 1) {
+      // Distance in ellipse units: 1.0 is the edge.
+      const d = Math.hypot((x - cx) / rx, (y - cy) / ry);
+      // ...and the edge wanders by a fifth of a radius, so no two sides of it
+      // are the same shape.
+      const rough = 0.86 + scatter(x, y, (seed | 0) + 733) * 0.22;
+      if (d <= rough) put(x, y, T.crag);
+    }
   }
   // The mouth: a two-tile notch in the south face, and the stair at the back
   // of it. Cut AFTER the mass, so it is a hole in rock rather than rock round

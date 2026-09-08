@@ -95,8 +95,18 @@ import {
   CHEESE_CAVE,
   FARLANDS_CAMP,
   CAMP_DIALOGUE,
+  RECALL_DIALOGUE,
+  RECALL_WAITING,
+  MUSTER_DIALOGUE,
 } from '../shared/constants.js';
 import { sweepCodex } from '../shared/codex.js';
+
+/**
+ * HOW LONG THE TWELVE TAKE TO WALK. Eleven days in the fiction, four minutes in
+ * the world — long enough that the muster is somewhere you come BACK to rather
+ * than a line of dialogue, short enough that it is not a chore.
+ */
+const MUSTER_WAIT_MS = 4 * 60 * 1000;
 
 import {
   computeTaskPayout,
@@ -3198,8 +3208,21 @@ function grantTool(state, itemId) {
 /** The Farlands chapter's own state. Seeded lazily, like everything else. */
 function farlandsOf(state) {
   if (!isObj(state.farlands)) state.farlands = {};
-  if (typeof state.farlands.metFamily !== 'boolean') state.farlands.metFamily = false;
-  return state.farlands;
+  const f = state.farlands;
+  for (const k of ['metFamily', 'recall', 'levy']) {
+    if (typeof f[k] !== 'boolean') f[k] = false;
+  }
+  // WHEN THE RECALL WAS WRITTEN. They have to walk — some of them eleven days —
+  // and the muster is not something you can stand next to and wait out. Real
+  // minutes, stored once, so closing the game does not pause the journey.
+  if (typeof f.recallAt !== 'number') f.recallAt = 0;
+  return f;
+}
+
+/** Have the twelve had time to get here? */
+function mustered(state) {
+  const f = farlandsOf(state);
+  return f.recall && Date.now() - f.recallAt >= MUSTER_WAIT_MS;
 }
 
 /** The hermit's errand, seeded lazily so older saves walk into it. */
@@ -3561,26 +3584,102 @@ function routeCampTalk(b, state, save) {
     return fail(`her fire is at ${FARLANDS_CAMP.x},${FARLANDS_CAMP.y} — you are at ${pos.x},${pos.y}.`);
   }
   const f = farlandsOf(state);
-  const first = !f.metFamily;
+  const items = questItemsOf(state);
+  const scene = (name, lines, objective) => ({
+    stage: 'opening', name, lines: lines.slice(), objective: objective || null,
+  });
   let xp = 0;
-  if (first) {
+
+  // 1. MEETING HER. The banner is not enough, and she says why.
+  if (!f.metFamily) {
     f.metFamily = true;
     xp = completeQuest(state, 'first_family_found',
       'Ilsa of the Sallow — one of twelve fires that cannot see each other');
     pushLog(state, `New objective — ${CAMP_DIALOGUE.objective}`, 'quest');
     save(state);
     return ok({ state, vendor: 'sallow', xp,
-      dialogue: { stage: 'opening', name: CAMP_DIALOGUE.name,
-        lines: CAMP_DIALOGUE.lines.slice(), objective: CAMP_DIALOGUE.objective } });
+      dialogue: scene(CAMP_DIALOGUE.name, CAMP_DIALOGUE.lines, CAMP_DIALOGUE.objective) });
   }
+
+  // 2. THE RECALL. It needs both: the ring is a lump of metal without the book
+  //    that says how he words things, and the book is evidence nobody has to
+  //    act on without the seal. Together they are authority.
+  const hasRing = (num(items.ranons_ring) ?? 0) > 0;
+  const hasCodex = (num(items.codex) ?? 0) > 0;
+  if (!f.recall) {
+    if (!hasRing || !hasCodex) {
+      return ok({
+        state, vendor: 'sallow', xp: 0,
+        dialogue: {
+          stage: 'open', name: CAMP_DIALOGUE.name,
+          lines: [
+            '"Twelve fires," she says. "Nine miles. And a signature that moved us."',
+            hasRing
+              ? '"You have the hand. You do not have the book that tells you how he uses it — '
+                + 'and a man\'s seal on the wrong words is just a man\'s seal."'
+              : '"You had his ring when you sat down here. Where is it? That is not a '
+                + 'keepsake, it is the only thing on this ground that anybody obeys."',
+          ],
+          objective: null,
+        },
+      });
+    }
+    f.recall = true;
+    f.recallAt = Date.now();
+    xp = completeQuest(state, 'recall_written',
+      'the recall — one page in another man\'s hand, and forty years undone');
+    pushLog(state, `New objective — ${RECALL_DIALOGUE.objective}`, 'quest');
+    save(state);
+    return ok({ state, vendor: 'sallow', xp, recall: true,
+      dialogue: scene(RECALL_DIALOGUE.name, RECALL_DIALOGUE.lines, RECALL_DIALOGUE.objective) });
+  }
+
+  // 3. THEY ARE WALKING. Some of them eleven days.
+  if (!mustered(state)) {
+    return ok({
+      state, vendor: 'sallow', xp: 0, walking: true,
+      dialogue: { stage: 'open', name: CAMP_DIALOGUE.name, lines: RECALL_WAITING.slice(), objective: null },
+    });
+  }
+
+  // 4. THE MUSTER, and the end of it.
+  if (!f.levy) {
+    if ((num(items.ashen_standard) ?? 0) < 1) {
+      return ok({
+        state, vendor: 'sallow', xp: 0,
+        dialogue: {
+          stage: 'open', name: CAMP_DIALOGUE.name,
+          lines: [
+            'Twelve fires, and several hundred people who have walked a long way.',
+            '"The standard," she says. "You did not bring it. Go and get it — this is the one '
+              + 'part of the day I am not prepared to improvise."',
+          ],
+          objective: null,
+        },
+      });
+    }
+    items.ashen_standard = 0;
+    delete items.ashen_standard;
+    f.levy = true;
+    xp = completeQuest(state, 'levy_raised',
+      'THE LEVY IS RAISED — the surety returned, and the debt discharged');
+    pushLog(state, 'THE ASHEN STANDARD stands in the ground it was taken from.', 'quest');
+    save(state);
+    return ok({ state, vendor: 'sallow', xp, levy: true,
+      dialogue: scene(MUSTER_DIALOGUE.name, MUSTER_DIALOGUE.lines, MUSTER_DIALOGUE.objective) });
+  }
+
+  // 5. after.
   return ok({
     state, vendor: 'sallow', xp: 0,
     dialogue: {
       stage: 'open', name: CAMP_DIALOGUE.name,
       lines: [
-        'She has banked the fire lower still, which on this ground counts as tidying up.',
-        '"Twelve fires," she says. "Nine miles. And a signature that moved us."',
-        '"You are still holding it. I notice you are still holding it."',
+        'The banner is still in the ground. Somebody has put stones round the foot of it, '
+          + 'badly, the way you do when you are not sure whose job it was.',
+        '"They are asking when we march," Ilsa says. "I have been telling them to eat first."',
+        '"You will want to go back east and tell the old man on the mountain. He will want to '
+          + 'know he was wrong about my people, and he will enjoy it."',
       ],
       objective: null,
     },

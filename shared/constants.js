@@ -2002,6 +2002,100 @@ export const CAMP_DIALOGUE = Object.freeze({
     + 'that moved them apart can move them back.',
 });
 
+/**
+ * THE RECALL — the last act of Quest One, and the one the whole arc set up.
+ *
+ * Ilsa has said the thing without offering it: "it moved us apart with a
+ * signature, and you are sitting there holding the hand that signs." What you
+ * do about that is write one counter-order under Ranon's own crest and reverse
+ * forty years of postings — because the Codex is a book of how he worded them
+ * and the Ring is the seal that makes a wording an order.
+ *
+ * It needs BOTH. The ring alone is a lump of metal with a filed crest; the book
+ * alone is evidence nobody has to act on. Together they are authority, which is
+ * a thing this story has been arguing is disturbingly cheap.
+ */
+export const RECALL_DIALOGUE = Object.freeze({
+  name: 'Ilsa of the Sallow',
+  lines: Object.freeze([
+    'She has been waiting, and does not pretend otherwise.',
+    '"Say it," she says. "You have been turning it over since you sat down and I would '
+      + 'rather hear it out loud than watch you decide."',
+    'You put the Codex on the ground between you and open it at the postings, and set the '
+      + 'ring beside it.',
+    'She reads for a while. She reads slowly, and does not apologise for it.',
+    '"This is his hand," she says at last. "All of it. Forty years and he never once had to '
+      + 'be here." She looks up. "And you can do his hand."',
+    'You can. That is what the book is: not a confession, a FORMULARY. Every order he ever '
+      + 'sent is in it, in the phrasing that made men move without asking who wanted them '
+      + 'moved. Copy the wording, press the ring into the wax, and it is an order.',
+    '"One page," she says. "That is all it takes to undo forty years. One page, because that '
+      + 'is all it took to do them."',
+    'She is quiet for a moment.',
+    '"I want you to notice that you are not troubled by this. I am not troubled by it either '
+      + '— that is the part I would think about later, if I were you."',
+    'You write it out. Postings rescinded. Men at the border released to their families. The '
+      + 'settlement rule struck, in the same flat clerk\'s phrasing it was made in.',
+    'The wax takes the crest cleanly. It looks exactly like every other order in the book, '
+      + 'because it is exactly like every other order in the book.',
+    '"Now we wait," she says. "They will have to walk."',
+  ]),
+  objective: 'The recall is written and sealed in Ranon\'s hand. The twelve families have '
+    + 'been released and are walking. Go back to Ilsa\'s fire when they have gathered, and '
+    + 'return the Ashen Standard.',
+});
+
+/** What she says while the twelve are still on the road. */
+export const RECALL_WAITING = Object.freeze([
+  '"Walking," she says. "Nine miles is nine miles, and some of them are coming further than '
+    + 'that, and some of them will not come at all until somebody they trust says it is not '
+    + 'a trick."',
+  '"Sit down. You have done the fast part."',
+]);
+
+/**
+ * THE MUSTER — twelve fires in one place for the first time in forty years, and
+ * the end of Quest One.
+ *
+ * The Standard is not a gift here. It is collateral being returned against a
+ * debt with a date on it, which is why they can be gathered by an order rather
+ * than persuaded by a speech: what is owed does not need to be argued for.
+ *
+ * And the cost is stated plainly and not resolved, because it is the next
+ * chapter's problem: you moved several hundred people with a signature, which
+ * is the instrument this entire story has spent four regions condemning.
+ */
+export const MUSTER_DIALOGUE = Object.freeze({
+  name: 'The Twelve Families',
+  lines: Object.freeze([
+    'You smell it before you see it. Twelve fires on ground that has held one fire for forty '
+      + 'years, and the smoke goes up in a line you could navigate by.',
+    'They have not built anything. Nobody is settling. They have come as far as the next '
+      + 'family and stopped, because the next family is the whole point.',
+    'Ilsa meets you at the edge of it, and for once she is not the calmest person present.',
+    '"They came," she says. "Some of them walked eleven days. Do you know what my aunt said '
+      + 'to me? She asked whether it was safe to stand this close together."',
+    'You take the Ashen Standard off your back and hand it to her, and she does not take it.',
+    '"Not to me. Put it in the ground. It is not mine, it is OURS, and that is the entire '
+      + 'difference and the reason we are all standing here."',
+    'So you plant it. Grey, heavy, forty years of somebody else\'s dust, and a number written '
+      + 'on the stand by a clerk who filed it and went home.',
+    'The noise that goes up is not a cheer. It is worse than a cheer — it is several hundred '
+      + 'people all saying something to the person next to them at the same time, which is a '
+      + 'sound none of them has made since they were children.',
+    'THE LEVY IS RAISED. It was never going to be given; it was owed, and it has been paid, '
+      + 'and the receipt is a banner in the dirt.',
+    'Later, when the fires are low, Ilsa finds you and sits down without being asked.',
+    '"You did it with a piece of paper," she says. "I have been thinking about it all day."',
+    '"He kept us apart for forty years with paper, and you brought us together in eleven days '
+      + 'with paper, and the paper did not care either time. It went where it was pointed."',
+    'She looks at the ring on your hand for a while.',
+    '"I would think hard about who is pointing it," she says. "That is all. Goodnight."',
+  ]),
+  objective: 'The Levy is raised, and the Ashen Standard is back in the ground it was taken '
+    + 'from. What you did it with is still on your hand.',
+});
+
 export const CHEESE_CAVE = Object.freeze({
   /**
    * THE MOUTH, in the south face of the outcrop, one tile above the road.
@@ -2270,6 +2364,10 @@ export const QUEST_XP = Object.freeze({
   cheesecake_baked: 500,
   /** Finding the first of the twelve, and learning why the Standard is not enough. */
   first_family_found: 400,
+  /** Writing one page in another man's hand, and undoing forty years with it. */
+  recall_written: 600,
+  /** THE END OF QUEST ONE. Twelve fires in one place, and a debt discharged. */
+  levy_raised: 1500,
   /** The Farlands' two pages. Paper is worth what it lets you read. */
   requisition_taken: 260,
   levy_roll_taken: 340,

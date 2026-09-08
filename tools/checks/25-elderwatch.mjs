@@ -309,19 +309,19 @@ export default {
 
     { type: 'note', text: 'THE KEEP. Four floors, and the map greys out around each one.' },
     {
-      // ONE TILE BELOW THE STAIR, not two.
+      // NO HELD KEY. This flaked four times — at 900ms, at 1600ms, and again
+      // from one tile away — because the failure was never the distance. Under
+      // load the harness drops most of a hold's frames and she covers no ground
+      // at all, so every fix that adjusted the walk was tuning the wrong knob.
       //
-      // Lengthening the hold did not fix this — it flaked at 900ms and again at
-      // 1600ms, because the failure is not the duration, it is that a loaded
-      // machine can drop most of a hold's frames and she covers no ground at
-      // all. Standing her on the tile below means a single step is enough, so
-      // the test survives a bad second without weakening what it asserts:
-      // STEPPING ONTO A STAIR IS WHAT CLIMBS IT, which is still what happens.
-      type: 'eval', label: 'walk to the tower door',
-      expr: "window.__sqWorld.setPlayerTile(37, 36); return 'ok';",
+      // She is placed ON the stair instead. What is under test is unchanged:
+      // BEING ON A STAIR IS WHAT CLIMBS IT — the world checks the tile she
+      // stands on each update and raises `onClimbTower`, and that is the code
+      // path a walking player takes too. What is given up is the walk itself,
+      // which `02-play` and `23-mountain` both exercise at length elsewhere.
+      type: 'eval', label: 'step onto the tower stair',
+      expr: "window.__sqWorld.setPlayerTile(37, 35); return 'ok';",
     },
-    { type: 'wait', ms: 500 },
-    { type: 'hold', key: 'w', ms: 1600, label: 'in through the door' },
     {
       type: 'waitFor', timeoutMs: 8000, label: 'the Guardroom, floor one',
       expr: "return window.__sqWorld.getMountain().floor === 1;",

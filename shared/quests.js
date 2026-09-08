@@ -66,11 +66,12 @@ export const QUESTS = Object.freeze([
       }),
       Object.freeze({
         text: 'They are nine miles apart by written order, and the orders still stand. '
-          + 'Find a way to gather them.',
-        // NOT YET BUILT, and it says so rather than quietly passing. The recall
-        // is the next chapter; until it exists this is the honest end of the
-        // quest, and the Bag shows the Levy as unfinished because it is.
-        done: () => false,
+          + 'Write the recall — you have his book and his seal.',
+        done: (s) => obj(obj(s).farlands).recall === true,
+      }),
+      Object.freeze({
+        text: 'They are walking. Go back to Ilsa\'s fire and return the Ashen Standard.',
+        done: (s) => obj(obj(s).farlands).levy === true,
       }),
     ]),
   }),

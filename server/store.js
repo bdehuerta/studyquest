@@ -335,7 +335,7 @@ export function defaultState() {
     cave: { in: false },
     // v10 — the Farlands chapter. `metFamily` is Ilsa of the Sallow: the first
     // of the twelve, and the person who explains why a banner is not enough.
-    farlands: { metFamily: false },
+    farlands: { metFamily: false, recall: false, mustered: false, levy: false },
     // v6 — the second map. `area` is where the scholar is standing; `areaPos`
     // remembers the last tile in each, so walking back and forth does not dump
     // you at a fixed spot every time.
