@@ -1183,6 +1183,12 @@ export async function handleApi(pathname, body, state, save) {
     // Settle stamina before anything reads or spends it.
     refreshMaxEnergy(state);
     regenStamina(state);
+    // ...and settle whether the twelve have finished walking, for the same
+    // reason: it is a function of the clock that the RENDERER has to be able to
+    // read off the save, and a route that never touches `farlands` would leave
+    // it stale — the muster would only appear once you happened to talk to
+    // somebody, which is precisely when you can no longer see it arriving.
+    farlandsOf(state);
     // v4: every task carries submission/grading keys before any route sees it.
     migrateQuestFields(state);
 
@@ -3216,13 +3222,18 @@ function farlandsOf(state) {
   // and the muster is not something you can stand next to and wait out. Real
   // minutes, stored once, so closing the game does not pause the journey.
   if (typeof f.recallAt !== 'number') f.recallAt = 0;
+  // MATERIALISED, not just computed. Whether they have arrived is a function of
+  // the clock, but the RENDERER has to know it to draw twelve fires instead of
+  // one — and the renderer only ever sees the save. So the derived answer is
+  // written down every time the state is touched, which is what `persist` does
+  // on every route anyway.
+  f.mustered = !!(f.recall && Date.now() - f.recallAt >= MUSTER_WAIT_MS);
   return f;
 }
 
 /** Have the twelve had time to get here? */
 function mustered(state) {
-  const f = farlandsOf(state);
-  return f.recall && Date.now() - f.recallAt >= MUSTER_WAIT_MS;
+  return farlandsOf(state).mustered;
 }
 
 /** The hermit's errand, seeded lazily so older saves walk into it. */

@@ -22,7 +22,7 @@ import {
   TILE_TYPES, SOLID_TILES, WORLD_W, WORLD_H,
   AREAS, AREA_PUZZLES, TOWER_FLOORS, ELDERWATCH, ELDERWATCH_WATCH,
   bouldersFor, platesFor, questSitesFor, GEAR_SITES, CROSSINGS, WARDEN,
-  AREA_IDS, areaOfSave, CHEESE_CAVE,
+  AREA_IDS, areaOfSave, CHEESE_CAVE, ELDERWATCH_GATES,
   ELDERWATCH_SWITCHES,
 } from '../../shared/constants.js';
 import { buildElderwatch, buildTowerFloor } from '../../web/world/elderwatch.js';
@@ -216,6 +216,61 @@ for (const g of GEAR_SITES) {
    * walked there, so this asks the flood, not the tile.
    */
   const inside = floodFloorMulti(bailey, { x: ELDERWATCH.doorX, y: ELDERWATCH.doorY }, []);
+
+  /**
+   * WITH THE BREACH GUARDED, THERE IS STILL A WAY OUT.
+   *
+   * Once you carry the Ring a watchman stands in the culvert, and the winch in
+   * the north-west store becomes the only way out of the fort. That is the
+   * intended pressure — and it is one bad coordinate away from being a locked
+   * room with the player inside it. So: block the guard's tile and require that
+   * the winch and the front gate are both still reachable from the bailey.
+   */
+  {
+    const guard = ELDERWATCH.breachGuard;
+    const sealed = floodFloorMulti(bailey, { x: ELDERWATCH.doorX, y: ELDERWATCH.doorY }, []);
+    sealed.delete(`${guard.x},${guard.y}`);
+    const reachable = (x, y) => {
+      // Re-flood without ever stepping on the guard.
+      const seen = new Set([`${ELDERWATCH.doorX},${ELDERWATCH.doorY}`]);
+      const q = [[ELDERWATCH.doorX, ELDERWATCH.doorY]];
+      while (q.length) {
+        const [cx, cy] = q.shift();
+        for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+          const nx = cx + dx;
+          const ny = cy + dy;
+          if (nx < 0 || ny < 0 || nx >= WORLD_W || ny >= WORLD_H) continue;
+          if (nx === guard.x && ny === guard.y) continue;
+          if (SOLID.has(bailey.tiles[ny * WORLD_W + nx])) continue;
+          const k = `${nx},${ny}`;
+          if (seen.has(k)) continue;
+          seen.add(k);
+          q.push([nx, ny]);
+        }
+      }
+      return seen.has(`${x},${y}`);
+    };
+    for (const sw of ELDERWATCH_SWITCHES) {
+      checked += 1;
+      const beside = [[1, 0], [-1, 0], [0, 1], [0, -1]]
+        .some(([dx, dy]) => reachable(sw.x + dx, sw.y + dy));
+      if (!beside) {
+        failures.push(
+          `Elderwatch: with a watchman in the breach, the ${sw.id} winch cannot be reached — `
+          + 'the fort is a locked room with the player inside it');
+      }
+    }
+    checked += 1;
+    // The gate the winch raises has to be reachable too, or opening it achieves
+    // nothing: you would be standing in the bailey listening to it grind up.
+    // The gate is TWO tiles of the wall's thickness (18 and 19), so the tile
+    // you stand on to walk out through it is the one inside both of them.
+    const gate = ELDERWATCH_GATES.frontgate[ELDERWATCH_GATES.frontgate.length - 1];
+    if (!reachable(gate.x + 1, gate.y)) {
+      failures.push(
+        'Elderwatch: with a watchman in the breach, the front gate cannot be walked to');
+    }
+  }
   for (const sw of ELDERWATCH_SWITCHES) {
     expectTile(bailey, `Elderwatch: the ${sw.id} winch`, sw.x, sw.y, { oneOf: [T.lever] });
     checked += 1;

@@ -1437,6 +1437,28 @@ export const ELDERWATCH = Object.freeze({
   doorX: 20,
   doorY: 33,
   /**
+   * THE WATCHMAN ON THE BREACH.
+   *
+   * He is posted the moment you come down out of the Keep carrying the Ring —
+   * the fort has noticed, and the first place anybody would put a man is the
+   * hole in the wall. He stands IN it, at the second tile of the wall's
+   * thickness, which is the strongest version of the image: a man standing in
+   * the gap you made with a hammer.
+   *
+   * Bruno: "place a guard blocking the wall gap you break with the stone
+   * hammer ... so you are forced to use the lever and open the door." That is
+   * the whole point of him — the culvert was the way in and it is not the way
+   * out, so the winch in the north-west store stops being optional and the
+   * front gate becomes something you have to earn twice.
+   *
+   * Keyed on holding the RING rather than the Standard, because the Standard is
+   * eventually planted in the Farlands and the ring never leaves you. A guard
+   * who unposted himself because you finished a quest three regions away would
+   * be a strange kind of vigilance.
+   */
+  breachGuard: Object.freeze({ x: 19, y: 33 }),
+
+  /**
    * THE GUARDROOM, south-east, against the wall — the one room of the flat
    * fort that survived the keep becoming a tower.
    *
@@ -1969,6 +1991,37 @@ export const FARLANDS_CAMP = Object.freeze({
   /** The camp's ground, so it reads as somewhere people live. */
   rect: Object.freeze({ x0: 15, y0: 36, x1: 22, y1: 41 }),
 });
+
+/**
+ * THE MUSTER — twelve fires and twelve families, once the recall has walked.
+ *
+ * ONE FIRE PER FAMILY, and they are named. The dialogue says several hundred
+ * people who have not stood this close together in forty years, and until now
+ * the ground under it was one brazier and Ilsa: a scene describing a crowd, on
+ * a map showing a woman. Bruno: "12 fires or something after the 4 minutes
+ * pass: or even better, 12 members around the fire, 1 for each of the tribes."
+ *
+ * They are laid in a loose ring rather than a grid, and none of them is tidy,
+ * because these are people who arrived over eleven days and stopped where the
+ * next family was.
+ */
+export const MUSTER_FIRES = Object.freeze([
+  Object.freeze({ name: 'Sallow', x: 18, y: 39 }),
+  Object.freeze({ name: 'Ash', x: 14, y: 37 }),
+  Object.freeze({ name: 'Kell', x: 22, y: 37 }),
+  Object.freeze({ name: 'Rede', x: 12, y: 40 }),
+  Object.freeze({ name: 'Marrow', x: 24, y: 40 }),
+  Object.freeze({ name: 'Thorn', x: 15, y: 43 }),
+  Object.freeze({ name: 'Bay', x: 21, y: 43 }),
+  Object.freeze({ name: 'Crake', x: 11, y: 36 }),
+  Object.freeze({ name: 'Ide', x: 25, y: 36 }),
+  Object.freeze({ name: 'Fen', x: 10, y: 43 }),
+  Object.freeze({ name: 'Wren', x: 26, y: 43 }),
+  Object.freeze({ name: 'Halloway', x: 18, y: 34 }),
+]);
+
+/** Where the Ashen Standard stands once it is in the ground, in the middle of them. */
+export const MUSTER_STANDARD = Object.freeze({ x: 18, y: 37 });
 
 export const CAMP_DIALOGUE = Object.freeze({
   name: 'Ilsa of the Sallow',

@@ -24,6 +24,7 @@ import {
   ELDERWATCH, ELDERWATCH_WATCH, crossingAt, crossingRows, questSitesFor, DOOR_KEYS, QUEST_ITEMS,
   AREA_NAMES, CROSSINGS, areaOfSave,
   CHEESECAKE_HERMIT, ELDERWATCH_SWITCHES, CHEESE_CAVE, FARLANDS_CAMP,
+  MUSTER_FIRES, MUSTER_STANDARD,
   TOWER, TOWER_FLOORS,
   WARDEN, WISE_CAVE,
   HUT,
@@ -1587,6 +1588,9 @@ export function createGame(canvas) {
       if (!name || !gateOpen(name)) return true;
       return false;
     }
+    // A MAN IN THE GAP IS A WALL. He is not a puzzle and there is nothing to
+    // press: the way out is the front gate now, and the winch that raises it.
+    if (atBreachGuard(tx, ty)) return true;
     // A LOCKED DOOR IS SHUT UNTIL YOU HAVE OPENED IT.
     //
     // It used to open for whoever merely CARRIED the key — you walked at it and
@@ -2564,6 +2568,33 @@ export function createGame(canvas) {
    * that opens it has been thrown. Plates are a grip you must keep; a winch is
    * a decision you made once, which is what a front gate needs.
    */
+  /**
+   * HOW FAR A GATE HAS RETRACTED — 0 shut, 1 fully into the wall.
+   *
+   * The gates never moved. `gateOpen()` decided whether you could WALK through
+   * one and the draw never asked, so a barred gate with both plates held still
+   * rendered as a solid slab: you shoved two barrels into place and the only
+   * feedback was that the wall had quietly stopped being a wall. Bruno: "add
+   * motion effects to the piston doors when they are activated with rocks."
+   *
+   * Keyed by gate name and timed off the clock, so every tile of a three-tile
+   * gate moves together — three slabs retracting out of step would read as
+   * three doors, not one.
+   */
+  const GATE_SLIDE_MS = 380;
+  const gateAnim = new Map();
+  function gateShift(name) {
+    if (!name) return 0;
+    const open = gateOpen(name);
+    let a = gateAnim.get(name);
+    if (!a) { a = { open, since: clockMs - GATE_SLIDE_MS }; gateAnim.set(name, a); }
+    if (a.open !== open) { a.open = open; a.since = clockMs; }
+    const t = Math.min(1, Math.max(0, (clockMs - a.since) / GATE_SLIDE_MS));
+    // ease-out, so it leaves fast and settles — a piston, not a lift.
+    const e = 1 - (1 - t) * (1 - t);
+    return open ? e : 1 - e;
+  }
+
   function gateOpen(name) {
     if (switchesHere().some((w) => w.opens === name && switchThrown(w.id))) return true;
 
@@ -2835,6 +2866,21 @@ export function createGame(canvas) {
     return Math.max(Math.abs(t.x - FARLANDS_CAMP.x), Math.abs(t.y - FARLANDS_CAMP.y)) <= 2;
   }
 
+  /**
+   * IS THE BREACH GUARDED? Once you are carrying Ranon's Ring, yes.
+   *
+   * The fort has noticed what came out of the Hall, and the culvert is the
+   * obvious place to post somebody. He makes the winch in the north-west store
+   * the way out instead of a curiosity.
+   */
+  function breachGuarded() {
+    return worldArea === AREAS.elderwatch && towerFloor === 0 && holdsItem('ranons_ring');
+  }
+  function atBreachGuard(tx, ty) {
+    const g = ELDERWATCH.breachGuard;
+    return breachGuarded() && tx === g.x && ty === g.y;
+  }
+
   /** On or beside the cheese cave's mouth, out on the moor. */
   function caveMouthInReach() {
     if (worldArea !== AREAS.farlands || inCheeseCave) return false;
@@ -3023,7 +3069,20 @@ export function createGame(canvas) {
       // and it used to lose to the monger, who is reachable from two tiles.
       if (caveWayOutInReach()) { fireInteract('__caveout'); return; }
       if (mongerInReach()) { fireInteract('__monger'); return; }
-      if (campInReach()) { fireInteract('__sallow'); return; }
+      if (breachGuarded()) {
+      const g = ELDERWATCH.breachGuard;
+      const t = { x: player.tileX(), y: player.tileY() };
+      if (Math.max(Math.abs(t.x - g.x), Math.abs(t.y - g.y)) <= 1) {
+        const label = 'a watchman is standing in the gap — the front gate, then';
+        const w2 = textWidth(label, ts);
+        const gx = clampToCanvas(
+          Math.round((g.x * TILE + TILE / 2 - camX) * S - w2 / 2), w2);
+        const gy = Math.round((g.y * TILE - camY - liftAt(g.x, g.y)) * S) - 14 * S;
+        drawTextOutlined(ctx, label, gx, gy, ts, PALETTE.bad, '#0d0f16');
+        lastPrompts.push(label);
+      }
+    }
+    if (campInReach()) { fireInteract('__sallow'); return; }
       if (caveMouthInReach()) { fireInteract('__cave'); return; }
       {
         const lock = lockHere();
@@ -3565,9 +3624,10 @@ export function createGame(canvas) {
     return tx >= CAVE.x && tx < CAVE.x + CAVE.w && ty >= CAVE.y && ty < CAVE.y + CAVE.h;
   }
 
-  // How see-through the roof is, tweened so walking in and out fades rather
+  // How see-through each roof is, tweened so walking in and out fades rather
   // than snapping. 1 = solid rock overhead, 0 = fully lifted.
   let roofAlpha = 1;
+  let wiseRoofAlpha = 1;
 
   /**
    * The rock over the Stonemason's chamber.
@@ -3728,31 +3788,78 @@ export function createGame(canvas) {
     return { darkness: darkAlpha, lightTiles: lightRadiusOf(wornCharms()) };
   }
 
-  function drawCaveRoof(g, camX, camY, S) {
-    // HOME ONLY. Outside the chamber `want` is 1, so with no guard this painted
-    // the Stonemason's ceiling — a solid slab of stone tiles — onto whatever
-    // happened to be at the same coordinates on the other map.
-    if (!atHome()) { roofAlpha = 0; return; }
-    const want = playerInCave() ? 0.14 : 1;
-    // ~180ms to settle at 60fps, and snapped at the ends so it actually finishes.
-    roofAlpha += (want - roofAlpha) * 0.18;
-    if (Math.abs(roofAlpha - want) < 0.01) roofAlpha = want;
-    if (roofAlpha <= 0.02) return;
-
-    const spr = SPRITES.tiles.stone;
+  /**
+   * ROCK OVERHEAD — the Stonemason's chamber, and now the Wise Man's.
+   *
+   * The trick is the same in both: paint the ceiling tiles ON TOP of the world
+   * and fade them out when the player is underneath. From outside you see a
+   * hillside; step in and the rock lifts off so you can see the room. It is not
+   * a real third dimension, it is one alpha and a rectangle, and that is
+   * exactly enough.
+   *
+   * The summit cave asked for it because from outside it was an open shelf with
+   * a fire and a door on it, which reads as a room somebody forgot to roof
+   * rather than a cave in a mountainside. Bruno: "add a rocky ceiling to the
+   * cave of the wise man of the mountain, like the one in the home block."
+   *
+   * A ROOF NEVER COVERS ITS OWN DOORWAY, in either cave. A door you cannot see
+   * from outside is a door nobody finds — the whole reason the mouth is drawn
+   * as a mouth. So the tile the door sits on, and the braziers either side of
+   * it, stay uncovered at all times.
+   */
+  function drawRoofSlab(g, camX, camY, S, rect, alpha, skip, tileName) {
+    if (alpha <= 0.02) return;
+    const spr = SPRITES.tiles[tileName] || SPRITES.tiles.stone;
     g.save();
-    g.globalAlpha = roofAlpha;
-    for (let ty = CAVE.y; ty < CAVE.y + CAVE.h; ty += 1) {
-      for (let tx = CAVE.x; tx < CAVE.x + CAVE.w; tx += 1) {
-        // The mouth is left open at all times — a doorway you cannot see is a
-        // doorway nobody finds.
-        if (ty >= CAVE.mouthY && ty < CAVE.mouthY + 3 && tx < CAVE.x + 1) continue;
+    g.globalAlpha = alpha;
+    for (let ty = rect.y0; ty <= rect.y1; ty += 1) {
+      for (let tx = rect.x0; tx <= rect.x1; tx += 1) {
+        if (skip && skip(tx, ty)) continue;
         drawSprite(g, spr,
           Math.round((tx * TILE - camX) * S),
-          Math.round((ty * TILE - camY) * S), S);
+          Math.round((ty * TILE - camY - liftAt(tx, ty)) * S), S);
       }
     }
     g.restore();
+  }
+
+  function drawCaveRoof(g, camX, camY, S) {
+    // THE HOME BLOCK'S CHAMBER. Outside it `want` is 1, so with no guard this
+    // painted the Stonemason's ceiling onto whatever happened to sit at the
+    // same coordinates on another map.
+    if (atHome()) {
+      const want = playerInCave() ? 0.14 : 1;
+      // ~180ms to settle at 60fps, snapped at the ends so it actually finishes.
+      roofAlpha += (want - roofAlpha) * 0.18;
+      if (Math.abs(roofAlpha - want) < 0.01) roofAlpha = want;
+      drawRoofSlab(g, camX, camY, S,
+        { x0: CAVE.x, y0: CAVE.y, x1: CAVE.x + CAVE.w - 1, y1: CAVE.y + CAVE.h - 1 },
+        roofAlpha,
+        (tx, ty) => ty >= CAVE.mouthY && ty < CAVE.mouthY + 3 && tx < CAVE.x + 1,
+        'stone');
+    } else {
+      roofAlpha = 0;
+    }
+
+    // THE SUMMIT CAVE, 8x3 of it, in crag rather than stone because that is
+    // what this mountain is made of.
+    if (worldArea === AREAS.peaks) {
+      const want = inWiseCave() ? 0.14 : 1;
+      wiseRoofAlpha += (want - wiseRoofAlpha) * 0.18;
+      if (Math.abs(wiseRoofAlpha - want) < 0.01) wiseRoofAlpha = want;
+      drawRoofSlab(g, camX, camY, S,
+        {
+          x0: WISE_CAVE.x, y0: WISE_CAVE.y,
+          x1: WISE_CAVE.x + WISE_CAVE.w - 1, y1: WISE_CAVE.y + WISE_CAVE.h - 1,
+        },
+        wiseRoofAlpha,
+        // The door and the braziers flanking it stay visible from outside.
+        (tx, ty) => ty >= WISE_CAVE.doorY - 1
+          && Math.abs(tx - WISE_CAVE.doorX) <= 1,
+        'crag');
+    } else {
+      wiseRoofAlpha = 0;
+    }
   }
 
   /**
@@ -3978,6 +4085,26 @@ export function createGame(canvas) {
             && paperTakenAt(tx, ty)) {
           forceTile = worldArea === AREAS.farlands ? TILE_TYPES.path : groundTile();
         }
+        // A GATE THAT IS OPENING SLIDES INTO THE WALL ABOVE IT. The floor it
+        // was standing on is drawn first, then the slab over the top of it,
+        // shifted up and clipped to its own tile so it vanishes into the rock
+        // rather than sailing off across the room.
+        const rawTile = forceTile >= 0 ? forceTile : src.tiles[rowBase + tx];
+        if (rawTile === TILE_TYPES.icegate) {
+          const shift = gateShift(gateAt(tx, ty));
+          drawTile(ctx, TILE_TYPES.rockfloor, tx, ty, px, py, S);
+          if (shift < 0.999) {
+            ctx.save();
+            ctx.beginPath();
+            ctx.rect(px, py, TILE * S, TILE * S);
+            ctx.clip();
+            drawTile(ctx, TILE_TYPES.icegate, tx, ty, px,
+              py - Math.round(shift * TILE * S), S);
+            ctx.restore();
+          }
+          if (over) drawSprite(ctx, over, px, py, S);
+          continue;
+        }
         if (variant) drawSprite(ctx, variant, px, py, S);
         else drawTile(ctx, forceTile >= 0 ? forceTile : src.tiles[rowBase + tx], tx, ty, px, py, S);
         if (over) drawSprite(ctx, over, px, py, S);
@@ -4080,6 +4207,10 @@ export function createGame(canvas) {
       for (const w of patrolList()) {
         drawables.push({ sortY: (w.y + 1) * TILE - liftAt(w.x, w.y), kind: 'w', ref: w });
       }
+      if (breachGuarded()) {
+        const g = ELDERWATCH.breachGuard;
+        drawables.push({ sortY: (g.y + 1) * TILE - liftAt(g.x, g.y), kind: 'w', ref: g });
+      }
       for (const sw of switchesHere()) {
         drawables.push({
           sortY: (sw.y + 1) * TILE - liftAt(sw.x, sw.y),
@@ -4120,11 +4251,31 @@ export function createGame(canvas) {
         kind: 'o', ref: CHEESE_CAVE.monger,
       });
     } else if (worldArea === AREAS.farlands) {
-      // Ilsa, at her fire. One of twelve, and the only one within nine miles.
-      drawables.push({
-        sortY: (FARLANDS_CAMP.y + 1) * TILE,
-        kind: 'o', ref: { x: FARLANDS_CAMP.x, y: FARLANDS_CAMP.y - 1 },
-      });
+      /**
+       * ONE FIRE, OR TWELVE.
+       *
+       * Before the recall has walked there is Ilsa and nothing else, which is
+       * the point: twelve fires that cannot see each other, and you are at the
+       * only one within nine miles. Once they have come, every family has a
+       * fire and somebody sitting at it, and the Standard is in the ground in
+       * the middle of them.
+       */
+      const camp = (state && state.farlands) || {};
+      const gathered = !!camp.recall && !!camp.mustered;
+      const fires = gathered ? MUSTER_FIRES : [{ x: FARLANDS_CAMP.x, y: FARLANDS_CAMP.y }];
+      for (const f of fires) {
+        drawables.push({ sortY: (f.y + 1) * TILE, kind: 'o', ref: { x: f.x, y: f.y - 1 } });
+        // Their own fire, beside them — Ilsa's is a real brazier tile already.
+        if (gathered && !(f.x === FARLANDS_CAMP.x && f.y === FARLANDS_CAMP.y)) {
+          drawables.push({ sortY: (f.y + 1) * TILE - 1, kind: 'f', ref: { x: f.x, y: f.y } });
+        }
+      }
+      if (camp.levy) {
+        drawables.push({
+          sortY: (MUSTER_STANDARD.y + 1) * TILE,
+          kind: 'q', ref: { item: 'ashen_standard', x: MUSTER_STANDARD.x, y: MUSTER_STANDARD.y },
+        });
+      }
     }
 
     drawables.sort((a, b) => a.sortY - b.sortY);
