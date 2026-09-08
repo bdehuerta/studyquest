@@ -289,6 +289,11 @@ for (const g of GEAR_SITES) {
       queue.push([nx, ny]);
     }
   }
+  // NOTE: there was a "a road must always be within N tiles" rule here. Bruno
+  // asked for the short road every other map has instead — the long one made a
+  // placeholder look like a plan — so findability is the chapter's job now, not
+  // the generator's. The detour check below stays: it catches a wall you have
+  // to walk round, which is a bug rather than a design choice.
   let worst = null;
   for (const [key, d] of dist) {
     const [x, y] = key.split(',').map(Number);

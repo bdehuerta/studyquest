@@ -74,36 +74,18 @@ export function buildFarlands(seed) {
   //         map was technically connected and he was technically not stuck; he
   //         had a fifty-tile detour with no landmark to aim at, which is the
   //         same thing. A road you can step onto from anywhere cannot do that.
+  //
+  //         SHORT, like every other map's. Bruno: "could you make the road less
+  //         lengthy? like the rest of them, just a few blocks of path and the
+  //         gap in the wall." The long version — spines up both sides and rungs
+  //         across — was scaffolding for a region with no landmarks yet, and it
+  //         made the placeholder look like a plan. The landmarks are the
+  //         chapter's job; this is just the way in.
   const road = crossingRows('farlands', 'east');
   const y0 = road ? road.y0 : 42;
   const y1 = road ? road.y1 : 44;
   for (let y = y0; y <= y1; y += 1) {
-    for (let x = WORLD_W - 1; x >= 12; x -= 1) put(x, y, T.path);
-  }
-  // A cairn either side of where the road gives out, so the far end reads as
-  // unfinished rather than as somewhere you failed to find the rest of.
-  put(11, y0, T.crag);
-  put(11, y1, T.crag);
-
-  // ---- 3b. WAYMARKERS, so the road can be found from anywhere on the map.
-  //
-  //          Three times now Bruno has been unable to leave this map, and only
-  //          the first time was he actually blocked. The other two he was loose
-  //          on a featureless red field where the only exit is a band of path
-  //          at the bottom of it — "walk south" is a thing I can say and the
-  //          map cannot. A placeholder region has no landmarks by definition,
-  //          so it has to be given some.
-  //
-  //          Lines of cairns run down to the road at intervals across the whole
-  //          map. From anywhere you can see one, and every one of them leads
-  //          south to the road: follow any of them and you are out. They are
-  //          scenery, not walls — they are one tile wide with gaps, so nothing
-  //          can be walked round or trapped behind them.
-  for (let x = 6; x < WORLD_W; x += 9) {
-    for (let y = 3; y < y0 - 1; y += 4) put(x, y, T.crag);
-  }
-  for (let y = y1 + 2; y < WORLD_H - 2; y += 4) {
-    for (let x = 6; x < WORLD_W; x += 9) put(x, y, T.crag);
+    for (let x = WORLD_W - 1; x >= WORLD_W - 10; x -= 1) put(x, y, T.path);
   }
 
   // ---- 4. seal it, leaving the road east open. Rock, not trees: nothing grows
