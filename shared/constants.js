@@ -143,6 +143,15 @@ export const TILE_TYPES = Object.freeze({
    * not have to be rebuilt to move it.
    */
   lever: 24,
+  /**
+   * LOOSE PAPER ON THE GROUND, where a Codex page is lying.
+   *
+   * Walkable — you stand on it to pick the page up — and it is REMOVED when the
+   * page is taken, so the ground remembers that you have been here. A marker
+   * that stayed after the thing was gone would be a permanent lie about where
+   * something is.
+   */
+  scatteredpaper: 25,
 });
 /**
  * WHICH TILES ARE TIMBER — i.e. behave like a tree everywhere it matters:

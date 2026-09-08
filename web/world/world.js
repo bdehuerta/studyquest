@@ -2464,6 +2464,19 @@ export function createGame(canvas) {
     return world.tiles[ty * WORLD_W + tx];
   }
 
+  /**
+   * PAPER THAT HAS BEEN PICKED UP IS NO LONGER ON THE FLOOR.
+   *
+   * The tile is baked into the map, and the map does not know what is in your
+   * pockets — so the draw asks. Ground left advertising a page you are already
+   * carrying is a small permanent lie about where things are.
+   */
+  function paperTakenAt(tx, ty) {
+    const q = questSitesFor(worldArea, towerFloor, inCheeseCave)
+      .find((site) => site.x === tx && site.y === ty);
+    return !!q && holdsItem(q.item);
+  }
+
   /** What the scholar has found up here. */
   function reachesState() {
     const r = (state && state.reaches) || null;
@@ -3009,16 +3022,7 @@ export function createGame(canvas) {
       // A WAY OUT WINS. Standing ON one is unambiguous — you are leaving —
       // and it used to lose to the monger, who is reachable from two tiles.
       if (caveWayOutInReach()) { fireInteract('__caveout'); return; }
-      if (campInReach()) {
-      const label = 'E  sit down at the fire';
-      const w2 = textWidth(label, ts);
-      const fx = clampToCanvas(
-        Math.round((FARLANDS_CAMP.x * TILE + TILE / 2 - camX) * S - w2 / 2), w2);
-      const fy = Math.round((FARLANDS_CAMP.y * TILE - camY) * S) - 14 * S;
-      drawTextOutlined(ctx, label, fx, fy, ts, PALETTE.accent, '#0d0f16');
-      lastPrompts.push(label);
-    }
-    if (mongerInReach()) { fireInteract('__monger'); return; }
+      if (mongerInReach()) { fireInteract('__monger'); return; }
       if (campInReach()) { fireInteract('__sallow'); return; }
       if (caveMouthInReach()) { fireInteract('__cave'); return; }
       {
@@ -3966,6 +3970,14 @@ export function createGame(canvas) {
         // on one floor of one tower and the rest of Elderwatch is below you.
         const src = (towerFloor > 0 && groundWorld && !insideTower(tx, ty))
           ? groundWorld : world;
+        // PAPER YOU HAVE ALREADY PICKED UP. The same trick a felled tree uses
+        // above: the terrain says "loose paper" forever, so the ground is
+        // forced back to what it is made of once the page is in your pocket.
+        // AFTER `src`, because that is where the tile is read from.
+        if (forceTile < 0 && src.tiles[rowBase + tx] === TILE_TYPES.scatteredpaper
+            && paperTakenAt(tx, ty)) {
+          forceTile = worldArea === AREAS.farlands ? TILE_TYPES.path : groundTile();
+        }
         if (variant) drawSprite(ctx, variant, px, py, S);
         else drawTile(ctx, forceTile >= 0 ? forceTile : src.tiles[rowBase + tx], tx, ty, px, py, S);
         if (over) drawSprite(ctx, over, px, py, S);
@@ -4487,6 +4499,15 @@ export function createGame(canvas) {
       lastPrompts.push(label);
     }
 
+    if (campInReach()) {
+      const label = 'E  sit down at the fire';
+      const w2 = textWidth(label, ts);
+      const fx = clampToCanvas(
+        Math.round((FARLANDS_CAMP.x * TILE + TILE / 2 - camX) * S - w2 / 2), w2);
+      const fy = Math.round((FARLANDS_CAMP.y * TILE - camY) * S) - 14 * S;
+      drawTextOutlined(ctx, label, fx, fy, ts, PALETTE.accent, '#0d0f16');
+      lastPrompts.push(label);
+    }
     if (mongerInReach()) {
       const m = CHEESE_CAVE.monger;
       const label = 'E  the cheesemonger';

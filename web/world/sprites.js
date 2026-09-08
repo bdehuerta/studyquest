@@ -2401,6 +2401,32 @@ const LEVER_0 = [
   'dddddddddddddddd',
 ];
 
+/**
+ * PAPER ON THE FLOOR: two or three loose sheets, half-curled, over the ground.
+ *
+ * It has to read as PAPER from a distance and as walkable underfoot, so it is
+ * drawn flat and pale with no outline round the outside — a bordered sprite
+ * reads as an object you would bump into.
+ */
+const SCATTERPAPER_0 = [
+  'dddddddddddddddd',
+  'ddddddd1dddddddd',
+  'dd11dddddd111ddd',
+  'd1mmm1dd1mmmm1dd',
+  'd1mmmm11mmmmm1dd',
+  'dd1mmmmmmmmm1ddd',
+  'ddd1mmmm1mmm1ddd',
+  'dd11mmm11mmmm1dd',
+  'd1mmmmm1dd11ddd1',
+  'd1mmmm1ddddddddd',
+  'dd1mm1dd111ddddd',
+  'ddd11dd1mmm1dddd',
+  'dddddd1mmmm1dddd',
+  'ddddddd1mm1ddddd',
+  'dddddddd11dddddd',
+  'dddddddddddddddd',
+];
+
 const EMBERROCK_0 = [
   'WXWWXWWWXWWWXWWX',
   'XWWWXWWXWWXWWWXW',
@@ -2469,6 +2495,7 @@ export const SPRITES = {
     // v10 — the farlands: cooled lava, red-black and cracked.
     emberrock: makeSprite(EMBERROCK_0, PAL, T16R),
     lever: makeSprite(LEVER_0, PAL, T16R),
+    scatteredpaper: makeSprite(SCATTERPAPER_0, PAL, T16R),
     // v2 — harvested variants, drawn in place of a depleted node.
     stump: makeSprite(TREE_TILE_0, PAL, T16), // see art.js SPRITES3.stump
     bloomstump: makeSprite(BLOOM_STUMP_0, PAL, T16),
@@ -2825,6 +2852,7 @@ export const WARDEN_FRAMES = Object.freeze([
 
 
 
+
 const TILE_NAME_BY_ID = [
   'grass', 'path', 'water', 'stone', 'tree', 'sand', 'bluetree',
   'snow', 'ice', 'snowpine', 'crag',
@@ -2833,6 +2861,7 @@ const TILE_NAME_BY_ID = [
   // v10 — the farlands
   'emberrock',
   'lever',
+  'scatteredpaper',
 ];
 
 /**

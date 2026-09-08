@@ -15,7 +15,7 @@
 
 import {
   WORLD_W, WORLD_H, TILE_TYPES,
-  crossingRows, CHEESE_CAVE, FARLANDS_CAMP,
+  crossingRows, CHEESE_CAVE, FARLANDS_CAMP, questSitesFor, AREAS,
 } from '../../shared/constants.js';
 
 const T = TILE_TYPES;
@@ -139,6 +139,15 @@ export function buildFarlands(seed) {
   // Her shelter and her stores, either side of it.
   put(FARLANDS_CAMP.x - 2, FARLANDS_CAMP.y, T.crate);
   put(FARLANDS_CAMP.x + 2, FARLANDS_CAMP.y - 1, T.crate);
+
+  // ---- 3e. PAPER ON THE GROUND, under every page that is lying about.
+  //
+  //          Bruno: "wherever there are codex pages in the floor add paper
+  //          pages on the floor you can set on and remove it when you take the
+  //          pages." Walkable, because you stand on it to pick the page up —
+  //          and world.js stops drawing it once the page is taken, so the
+  //          ground stops advertising something that is not there any more.
+  for (const q of questSitesFor(AREAS.farlands, 0)) put(q.x, q.y, T.scatteredpaper);
 
   // ---- 4. seal it, leaving the road east open. Rock, not trees: nothing grows
   //         here.
