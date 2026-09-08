@@ -603,9 +603,13 @@ game.onInteract = async (buildingId) => {
    * He is not a building, so there is no counter to open — and a man with one
    * item at one price does not need a shop panel. Talk, then press again.
    */
+  if (buildingId === '__sallow') { await commitPosition(); speakTo('sallow', null); return; }
   if (buildingId === '__monger') {
     await commitPosition();
-    const found = !!(state && state.hermit && state.hermit.monger);
+    const h = (state && state.hermit) || {};
+    // NOT SENT, NOT SOLD. Talking is always allowed — he is worth finding on
+    // his own — but the second press only buys for somebody on the errand.
+    const found = !!(h.monger && h.spoken);
     const hasCheese = Number((state && state.questItems && state.questItems.summit_cheese) || 0) > 0;
     if (found && !hasCheese) {
       const r = await api.buyCheese();

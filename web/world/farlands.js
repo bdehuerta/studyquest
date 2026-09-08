@@ -15,7 +15,7 @@
 
 import {
   WORLD_W, WORLD_H, TILE_TYPES,
-  crossingRows, CHEESE_CAVE,
+  crossingRows, CHEESE_CAVE, FARLANDS_CAMP,
 } from '../../shared/constants.js';
 
 const T = TILE_TYPES;
@@ -119,6 +119,26 @@ export function buildFarlands(seed) {
   for (let y = y0; y <= y1; y += 1) {
     for (let x = H.x0 - 1; x <= H.x1 + 1; x += 1) put(x, y, T.path);
   }
+
+  // ---- 3d. ILSA'S CAMP, west along the road. One fire, and room around it.
+  //
+  //          Deliberately small. Eleven more families exist and none of them is
+  //          within nine miles of this one — that is the whole point of the
+  //          chapter — so a camp that looked like a settlement would be telling
+  //          the player the opposite of the truth.
+  const R = FARLANDS_CAMP.rect;
+  for (let y = R.y0; y <= R.y1; y += 1) {
+    for (let x = R.x0; x <= R.x1; x += 1) {
+      if (tiles[idx(x, y)] === T.crag) put(x, y, T.emberrock);
+    }
+  }
+  // A short path from the road up to the fire, so the camp reads as lived in
+  // and, more usefully, so it can be found from the one road on the map.
+  for (let y = y0; y >= FARLANDS_CAMP.y; y -= 1) put(FARLANDS_CAMP.x, y, T.path);
+  put(FARLANDS_CAMP.x, FARLANDS_CAMP.y, T.brazier);
+  // Her shelter and her stores, either side of it.
+  put(FARLANDS_CAMP.x - 2, FARLANDS_CAMP.y, T.crate);
+  put(FARLANDS_CAMP.x + 2, FARLANDS_CAMP.y - 1, T.crate);
 
   // ---- 4. seal it, leaving the road east open. Rock, not trees: nothing grows
   //         here.

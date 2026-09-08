@@ -333,6 +333,9 @@ export function defaultState() {
     // so an older save walks into the quest rather than round it.
     hermit: { spoken: false, monger: false, paid: false },
     cave: { in: false },
+    // v10 — the Farlands chapter. `metFamily` is Ilsa of the Sallow: the first
+    // of the twelve, and the person who explains why a banner is not enough.
+    farlands: { metFamily: false },
     // v6 — the second map. `area` is where the scholar is standing; `areaPos`
     // remembers the last tile in each, so walking back and forth does not dump
     // you at a fixed spot every time.

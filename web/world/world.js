@@ -23,7 +23,7 @@ import {
   EAST_ROAD, AREA_PUZZLES, bouldersFor, platesFor,
   ELDERWATCH, ELDERWATCH_WATCH, crossingAt, crossingRows, questSitesFor, DOOR_KEYS, QUEST_ITEMS,
   AREA_NAMES, CROSSINGS, areaOfSave,
-  CHEESECAKE_HERMIT, ELDERWATCH_SWITCHES, CHEESE_CAVE,
+  CHEESECAKE_HERMIT, ELDERWATCH_SWITCHES, CHEESE_CAVE, FARLANDS_CAMP,
   TOWER, TOWER_FLOORS,
   WARDEN, WISE_CAVE,
   HUT,
@@ -2815,6 +2815,13 @@ export function createGame(canvas) {
     return x > H.x0 && x < H.x1 && y > H.y0 && y < H.y1;
   }
 
+  /** Close enough to Ilsa's fire to sit down at it. */
+  function campInReach() {
+    if (worldArea !== AREAS.farlands || inCheeseCave) return false;
+    const t = { x: player.tileX(), y: player.tileY() };
+    return Math.max(Math.abs(t.x - FARLANDS_CAMP.x), Math.abs(t.y - FARLANDS_CAMP.y)) <= 2;
+  }
+
   /** On or beside the cheese cave's mouth, out on the moor. */
   function caveMouthInReach() {
     if (worldArea !== AREAS.farlands || inCheeseCave) return false;
@@ -3002,7 +3009,17 @@ export function createGame(canvas) {
       // A WAY OUT WINS. Standing ON one is unambiguous — you are leaving —
       // and it used to lose to the monger, who is reachable from two tiles.
       if (caveWayOutInReach()) { fireInteract('__caveout'); return; }
-      if (mongerInReach()) { fireInteract('__monger'); return; }
+      if (campInReach()) {
+      const label = 'E  sit down at the fire';
+      const w2 = textWidth(label, ts);
+      const fx = clampToCanvas(
+        Math.round((FARLANDS_CAMP.x * TILE + TILE / 2 - camX) * S - w2 / 2), w2);
+      const fy = Math.round((FARLANDS_CAMP.y * TILE - camY) * S) - 14 * S;
+      drawTextOutlined(ctx, label, fx, fy, ts, PALETTE.accent, '#0d0f16');
+      lastPrompts.push(label);
+    }
+    if (mongerInReach()) { fireInteract('__monger'); return; }
+      if (campInReach()) { fireInteract('__sallow'); return; }
       if (caveMouthInReach()) { fireInteract('__cave'); return; }
       {
         const lock = lockHere();
@@ -4089,6 +4106,12 @@ export function createGame(canvas) {
       drawables.push({
         sortY: (CHEESE_CAVE.monger.y + 1) * TILE,
         kind: 'o', ref: CHEESE_CAVE.monger,
+      });
+    } else if (worldArea === AREAS.farlands) {
+      // Ilsa, at her fire. One of twelve, and the only one within nine miles.
+      drawables.push({
+        sortY: (FARLANDS_CAMP.y + 1) * TILE,
+        kind: 'o', ref: { x: FARLANDS_CAMP.x, y: FARLANDS_CAMP.y - 1 },
       });
     }
 

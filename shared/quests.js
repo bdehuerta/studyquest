@@ -49,9 +49,28 @@ export const QUESTS = Object.freeze([
         text: 'Carry both back to him on the mountain before going west.',
         done: (s) => obj(obj(s).wiseMan).returned === true,
       }),
+      /**
+       * ARRIVING IS NOT FINDING. This was one step promising two things and
+       * ticking on the first — Bruno: "it says I have completed the quest of
+       * finding the 12 families in the farlands but I havent". Standing on the
+       * burnt ground satisfied it. A step that claims work you have not done is
+       * worse than a step that is still open.
+       */
       Object.freeze({
-        text: 'Travel west into the Farlands and find the twelve families.',
+        text: 'Travel west, past the Home Block, out onto the burnt ground.',
         done: (s) => 'farlands' in obj(obj(s).areaPos) || obj(obj(s).player).area === 'farlands',
+      }),
+      Object.freeze({
+        text: 'Find the twelve families. Show them the Ring.',
+        done: (s) => obj(obj(s).farlands).metFamily === true,
+      }),
+      Object.freeze({
+        text: 'They are nine miles apart by written order, and the orders still stand. '
+          + 'Find a way to gather them.',
+        // NOT YET BUILT, and it says so rather than quietly passing. The recall
+        // is the next chapter; until it exists this is the honest end of the
+        // quest, and the Bag shows the Levy as unfinished because it is.
+        done: () => false,
       }),
     ]),
   }),

@@ -1943,6 +1943,56 @@ export const CHEESECAKE_HERMIT = Object.freeze({ x: 3, y: 4 });
  * the same trick the Home Block's cave uses, and the reason you do not walk
  * onto a hole in the floor by accident.
  */
+/**
+ * THE FIRST OF THE TWELVE — a camp on the burnt ground, west of the road.
+ *
+ * You arrive holding a banner that legally settles a forty-year debt, and this
+ * is where you find out that there is nobody to hand it to. She is one family
+ * of twelve, and by order there is no second family within nine miles of her.
+ *
+ * She is not a quest-giver in the sense of handing you a job. She is the person
+ * who tells you what the paperwork you have been reading actually did to
+ * somebody, which is the only thing the Codex cannot do for itself.
+ */
+export const FARLANDS_CAMP = Object.freeze({
+  /** Her fire, west along the road and a little off it. */
+  x: 18, y: 39,
+  /** The camp's ground, so it reads as somewhere people live. */
+  rect: Object.freeze({ x0: 15, y0: 36, x1: 22, y1: 41 }),
+});
+
+export const CAMP_DIALOGUE = Object.freeze({
+  name: 'Ilsa of the Sallow',
+  lines: Object.freeze([
+    'The fire is small and banked low, the way a fire is when it has to last and nobody is '
+      + 'coming to help you build it up.',
+    'She watches you cross the last of the open ground with the flat, unhurried attention of '
+      + 'somebody who has already counted how many of you there are.',
+    '"One," she says. "You are one. That is not a raid, so sit down."',
+    'You put the Ashen Standard across your knees. She does not touch it. She looks at it for '
+      + 'a long moment and then, deliberately, at the fire.',
+    '"Sallow," she says. "That is my name and my family and there are eleven more, and I have '
+      + 'not seen one of them in nine years."',
+    '"You will want to know why, because you have that look. Nine miles. No two families '
+      + 'inside nine miles of each other and no two of a name in one place — that is the '
+      + 'RULE, and nobody ever read it to us. It arrived as where the water was, and where '
+      + 'the grazing was, and where a man could get work."',
+    'She holds a hand out for the ring without asking, and you find you have given it to her.',
+    '"My father went to the border. They told us he went willingly." She turns it once. '
+      + '"He could not write. Somebody wrote it for him and signed it with this."',
+    'She gives it back, and wipes her hand on her coat, once, without appearing to notice.',
+    '"So. Your banner. It is ours and I am glad to see it, and it is worth NOTHING while we '
+      + 'are twelve fires that cannot see each other. A levy is people standing in one place. '
+      + 'You cannot hand a banner to a rumour."',
+    'The fire pops. She lets it.',
+    '"But it moved us apart with a signature, and you are sitting there holding the hand that '
+      + 'signs. Think about that, and then come back and tell me you have thought about it."',
+  ]),
+  objective: 'The twelve families cannot be gathered — they were scattered by written order, '
+    + 'nine miles apart, and the orders are still in force. Ilsa of the Sallow says the thing '
+    + 'that moved them apart can move them back.',
+});
+
 export const CHEESE_CAVE = Object.freeze({
   /**
    * THE MOUTH, in the south face of the outcrop, one tile above the road.
@@ -2049,6 +2099,23 @@ export const MONGER_DIALOGUE = Object.freeze({
       + 'down and I am not going up, before you start."',
     'Behind him, set into the rock, there is a door you did not come in by. He sees you '
       + 'notice it. "Yes. It goes out by the mouth. I am not making you walk that twice."',
+  ]),
+  /**
+   * WHEN NOBODY SENT YOU. He is not being difficult — he has one customer, and
+   * a stranger at the end of a maze he has been alone in for forty years is not
+   * a sale, it is a surprise.
+   */
+  unsent: Object.freeze([
+    'The corridor opens without warning into a room full of shelves, and the shelves are '
+      + 'full of cheese, and a man is turning one of the rounds a quarter-turn.',
+    'He looks up, and the look goes through several things very quickly before it settles '
+      + 'on suspicion.',
+    '"You are not him," he says.',
+    'You ask who.',
+    '"The one up the mountain. In the coat. Opinions." He turns back to the shelf. "He sends '
+      + 'nobody, ever, because there IS nobody. And then you walk in out of the dark."',
+    '"They are all spoken for. Come back when somebody has sent you, and bring his money, '
+      + 'because I will know."',
   ]),
   /** Coming back before you have bought anything. */
   again: Object.freeze([
@@ -2192,6 +2259,8 @@ export const QUEST_XP = Object.freeze({
    * as the errands that decide a kingdom, which is the joke paid out in xp.
    */
   cheesecake_baked: 500,
+  /** Finding the first of the twelve, and learning why the Standard is not enough. */
+  first_family_found: 400,
   /** The Farlands' two pages. Paper is worth what it lets you read. */
   requisition_taken: 260,
   levy_roll_taken: 340,

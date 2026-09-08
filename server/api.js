@@ -93,6 +93,8 @@ import {
   CHEESECAKE_PAID,
   MONGER_DIALOGUE,
   CHEESE_CAVE,
+  FARLANDS_CAMP,
+  CAMP_DIALOGUE,
 } from '../shared/constants.js';
 import { sweepCodex } from '../shared/codex.js';
 
@@ -2733,6 +2735,7 @@ function routeNpcTalk(b, state, save) {
   if (b.vendor === 'wiseman') return routeWiseManTalk(b, state, save);
   if (b.vendor === 'hermit') return routeHermitTalk(b, state, save);
   if (b.vendor === 'monger') return routeMongerTalk(b, state, save);
+  if (b.vendor === 'sallow') return routeCampTalk(b, state, save);
   const vendor = (b.vendor === 'woodsman' || b.vendor === 'stonemason') ? b.vendor : null;
   if (!vendor) return fail('talk to whom? send vendor: "woodsman", "stonemason" or "herald"');
 
@@ -3192,6 +3195,13 @@ function grantTool(state, itemId) {
   return true;
 }
 
+/** The Farlands chapter's own state. Seeded lazily, like everything else. */
+function farlandsOf(state) {
+  if (!isObj(state.farlands)) state.farlands = {};
+  if (typeof state.farlands.metFamily !== 'boolean') state.farlands.metFamily = false;
+  return state.farlands;
+}
+
 /** The hermit's errand, seeded lazily so older saves walk into it. */
 function hermitOf(state) {
   if (!isObj(state.hermit)) state.hermit = {};
@@ -3487,13 +3497,16 @@ function routeMongerTalk(b, state, save) {
     vendor: 'monger',
     xp,
     price: CHEESE_CAVE.price,
-    canBuy: !bought && florins >= CHEESE_CAVE.price,
+    canBuy: h.spoken && !bought && florins >= CHEESE_CAVE.price,
+    sent: h.spoken,
     bought,
     dialogue: {
       stage: first ? 'opening' : 'open',
       name: MONGER_DIALOGUE.name,
-      lines: first ? MONGER_DIALOGUE.lines.slice()
-        : (bought ? MONGER_DIALOGUE.after.slice() : MONGER_DIALOGUE.again.slice()),
+      lines: h.spoken
+        ? (first ? MONGER_DIALOGUE.lines.slice()
+          : (bought ? MONGER_DIALOGUE.after.slice() : MONGER_DIALOGUE.again.slice()))
+        : MONGER_DIALOGUE.unsent.slice(),
       objective: null,
     },
   });
@@ -3504,6 +3517,21 @@ function routeCheeseBuy(b, state, save) {
   if (!caveOf(state).in) return fail('he is at the end of the cave.');
   const h = hermitOf(state);
   if (!h.monger) return fail('you have not found him yet.');
+  /**
+   * HE ONLY SELLS TO SOMEBODY THE HERMIT SENT.
+   *
+   * Bruno: "you can only buy the cheesecake when you speak with the man in the
+   * fireplace first in the reaches, and then you take it to him." Without this
+   * you could stumble into the cave having never met the hermit, buy a round of
+   * cheese for ten florins of your own money, and be holding an object with no
+   * reason attached to it. The errand is what makes the cheese mean anything —
+   * and in his own account, the rounds are all spoken for.
+   */
+  if (!h.spoken) {
+    return fail('"Spoken for," he says, and puts his hand on it. "All of them. There is one '
+      + 'man who buys my cheese and you are not him — and you are not carrying his money '
+      + 'either, or you would have said so."');
+  }
   const items = questItemsOf(state);
   if ((num(items.summit_cheese) ?? 0) > 0) return fail('you already have his cheese.');
   const have = num(state.player.coins.florin) ?? 0;
@@ -3515,6 +3543,48 @@ function routeCheeseBuy(b, state, save) {
   pushLog(state, 'A ROUND OF FARLANDS CHEESE. Keep it cold.', 'quest');
   save(state);
   return ok({ state, bought: true, spent: CHEESE_CAVE.price });
+}
+
+/**
+ * POST /api/npc/talk with vendor "sallow" — Ilsa, the first of the twelve.
+ *
+ * She wants nothing from you and gives you nothing but the shape of the
+ * problem, which is the one thing the Codex cannot supply: what forty years of
+ * postings did to a person who could not read them.
+ */
+function routeCampTalk(b, state, save) {
+  if (areaOf(state) !== AREAS.farlands || caveOf(state).in) {
+    return fail('her fire is out on the burnt ground.');
+  }
+  const pos = playerPosition(b, state);
+  if (Math.max(Math.abs(pos.x - FARLANDS_CAMP.x), Math.abs(pos.y - FARLANDS_CAMP.y)) > 2) {
+    return fail(`her fire is at ${FARLANDS_CAMP.x},${FARLANDS_CAMP.y} — you are at ${pos.x},${pos.y}.`);
+  }
+  const f = farlandsOf(state);
+  const first = !f.metFamily;
+  let xp = 0;
+  if (first) {
+    f.metFamily = true;
+    xp = completeQuest(state, 'first_family_found',
+      'Ilsa of the Sallow — one of twelve fires that cannot see each other');
+    pushLog(state, `New objective — ${CAMP_DIALOGUE.objective}`, 'quest');
+    save(state);
+    return ok({ state, vendor: 'sallow', xp,
+      dialogue: { stage: 'opening', name: CAMP_DIALOGUE.name,
+        lines: CAMP_DIALOGUE.lines.slice(), objective: CAMP_DIALOGUE.objective } });
+  }
+  return ok({
+    state, vendor: 'sallow', xp: 0,
+    dialogue: {
+      stage: 'open', name: CAMP_DIALOGUE.name,
+      lines: [
+        'She has banked the fire lower still, which on this ground counts as tidying up.',
+        '"Twelve fires," she says. "Nine miles. And a signature that moved us."',
+        '"You are still holding it. I notice you are still holding it."',
+      ],
+      objective: null,
+    },
+  });
 }
 
 /** POST /api/npc/talk with vendor "wiseman". */
