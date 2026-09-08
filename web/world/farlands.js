@@ -88,29 +88,37 @@ export function buildFarlands(seed) {
     for (let x = WORLD_W - 1; x >= WORLD_W - 10; x -= 1) put(x, y, T.path);
   }
 
-  // ---- 3c. THE CHEESE CAVE'S MOUTH, and the bowl of dark ground around it.
+  // ---- 3c. THE CHEESE CAVE: a rock mass, with a hole in it.
   //
-  //          The hollow is `rockfloor`, the same ground the Home Block's cave
-  //          is cut in, so the cave announces itself as a cave before you are
-  //          standing in it. The mouth itself is a STAIR: stepping onto it is
-  //          what takes you in, exactly as the Keep's door does, so there is
-  //          one grammar in this game for "a way in" rather than two.
+  //          The first cut was a nine-by-eight rectangle of cave floor with a
+  //          rim round it, which from outside is not a cave — it is a room with
+  //          the roof off, and you can see the whole of it before you go in.
+  //          Bruno: "from the outside I should not be able to see the cave!"
+  //
+  //          So it is an OUTCROP now: a mass of crag standing on the moor with
+  //          one dark opening cut into its south face. From outside you see
+  //          rock and a hole. The two tiles of cave floor inside the hole are
+  //          all you get, and they are dark, so the mouth reads as somewhere
+  //          that goes back rather than somewhere that stops.
   const H = CHEESE_CAVE.hollow;
   for (let y = H.y0; y <= H.y1; y += 1) {
-    for (let x = H.x0; x <= H.x1; x += 1) {
-      // A ring of crag around the bowl, so it reads as a hole rather than a rug.
-      const rim = x === H.x0 || x === H.x1 || y === H.y0 || y === H.y1;
-      put(x, y, rim ? T.crag : T.rockfloor);
-    }
+    for (let x = H.x0; x <= H.x1; x += 1) put(x, y, T.crag);
   }
-  // ...but never across the road: the way home has to survive the scenery.
-  for (let y = y0; y <= y1; y += 1) {
-    for (let x = H.x0; x <= H.x1; x += 1) put(x, y, T.path);
-  }
-  put(CHEESE_CAVE.mouth.x, CHEESE_CAVE.mouth.y, T.stair);
-  // The door beside the mouth that the maze opens from the inside. Solid until
-  // then — a locked door with no key, opened by arriving at the other end.
+  // The mouth: a two-tile notch in the south face, and the stair at the back
+  // of it. Cut AFTER the mass, so it is a hole in rock rather than rock round
+  // a hole — the same ordering the grove's door and the Reaches' roads taught.
+  const M = CHEESE_CAVE.mouth;
+  put(M.x, M.y + 1, T.rockfloor);
+  put(M.x, M.y, T.stair);
+  // The door his end of the warren opens, set into the same face.
   put(CHEESE_CAVE.door.x, CHEESE_CAVE.door.y, T.lockdoor);
+  put(CHEESE_CAVE.door.x, CHEESE_CAVE.door.y + 1, T.rockfloor);
+
+  // ...and the road runs along the foot of the outcrop, never through it: the
+  // way home has to survive the scenery.
+  for (let y = y0; y <= y1; y += 1) {
+    for (let x = H.x0 - 1; x <= H.x1 + 1; x += 1) put(x, y, T.path);
+  }
 
   // ---- 4. seal it, leaving the road east open. Rock, not trees: nothing grows
   //         here.

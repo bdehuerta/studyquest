@@ -2601,7 +2601,7 @@ export function createGame(canvas) {
 
   /** A quest item lying here that has not been taken yet. */
   function questSiteAt(tx, ty) {
-    const sites = questSitesFor(worldArea, towerFloor);
+    const sites = questSitesFor(worldArea, towerFloor, inCheeseCave);
     if (!sites.length) return null;
     const held = (state && state.questItems) || {};
     return sites.find((q) => q.x === tx && q.y === ty && !(Number(held[q.item]) > 0)) || null;
@@ -2999,9 +2999,11 @@ export function createGame(canvas) {
       // After the dialogue check, so E still pages through what he is saying.
       if (heraldInReach()) { fireInteract('__herald'); return; }
       if (hermitInReach()) { fireInteract('__cheesecake'); return; }
+      // A WAY OUT WINS. Standing ON one is unambiguous — you are leaving —
+      // and it used to lose to the monger, who is reachable from two tiles.
+      if (caveWayOutInReach()) { fireInteract('__caveout'); return; }
       if (mongerInReach()) { fireInteract('__monger'); return; }
       if (caveMouthInReach()) { fireInteract('__cave'); return; }
-      if (caveWayOutInReach()) { fireInteract('__caveout'); return; }
       {
         const lock = lockHere();
         const f3 = player.facingTile();
@@ -4041,7 +4043,7 @@ export function createGame(canvas) {
         if (hasGear(g.gear)) continue;
         drawables.push({ sortY: (g.y + 1) * TILE - liftAt(g.x, g.y), kind: 'g', ref: g });
       }
-      const sites = questSitesFor(worldArea, towerFloor);
+      const sites = questSitesFor(worldArea, towerFloor, inCheeseCave);
       for (const q of sites) {
         if (holdsItem(q.item)) continue;
         drawables.push({ sortY: (q.y + 1) * TILE - liftAt(q.x, q.y), kind: 'q', ref: q });
@@ -4053,14 +4055,6 @@ export function createGame(canvas) {
         drawables.push({
           sortY: (sw.y + 1) * TILE - liftAt(sw.x, sw.y),
           kind: 'v', ref: { x: sw.x, y: sw.y, thrown: switchThrown(sw.id) },
-        });
-      }
-      if (inCheeseCave) {
-        // Him and his shelves, at the end of it. Borrowing the Wise Man's art:
-        // two men who went underground and stayed is the joke, not an oversight.
-        drawables.push({
-          sortY: (CHEESE_CAVE.monger.y + 1) * TILE,
-          kind: 'o', ref: CHEESE_CAVE.monger,
         });
       }
       if (worldArea === AREAS.peaks) {
@@ -4080,6 +4074,24 @@ export function createGame(canvas) {
         });
       }
     }
+    /**
+     * THE CHEESEMONGER, drawn OUTSIDE the mountain-furniture block.
+     *
+     * He was inside `if (puzzleSet())` alongside the Wise Man, and the Farlands
+     * have no entry in AREA_PUZZLES — so that whole block is skipped there and
+     * he was never drawn at all. Bruno reached the end of a 582-tile maze in
+     * the dark and found nobody: "the cheesemonger npc should be ... visible, a
+     * npc". He is his own drawable now, answerable to nothing but being in the
+     * cave. Borrowing the Wise Man's art on purpose: two old men who went
+     * underground and stayed there is the joke, not an oversight.
+     */
+    if (inCheeseCave) {
+      drawables.push({
+        sortY: (CHEESE_CAVE.monger.y + 1) * TILE,
+        kind: 'o', ref: CHEESE_CAVE.monger,
+      });
+    }
+
     drawables.sort((a, b) => a.sortY - b.sortY);
 
     // Where a thing standing on the mountain is drawn, and the soft contact

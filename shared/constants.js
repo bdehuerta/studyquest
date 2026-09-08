@@ -1867,7 +1867,13 @@ export const QUEST_SITES = Object.freeze({
  * this, so the split lives in one place rather than as the same ternary written
  * out three times.
  */
-export function questSitesFor(area, floor = 0) {
+export function questSitesFor(area, floor = 0, inCave = false) {
+  // THE CHEESE WARREN IS NOT THE FARLANDS, even though it shares the area id.
+  // Bruno, finding the Levy Roll underground: "why is the a levy scroll in the
+  // labyrinth". Because the cave is drawn as `farlands` with a flag, so the
+  // moor's two pages were being laid out inside it as well — a document that
+  // belongs on a road, sitting in a maze, meaning nothing.
+  if (inCave) return [];
   if (area === AREAS.elderwatch && floor > 0) {
     return TOWER_ITEMS.filter((q) => q.floor === floor);
   }
@@ -1938,23 +1944,34 @@ export const CHEESECAKE_HERMIT = Object.freeze({ x: 3, y: 4 });
  * onto a hole in the floor by accident.
  */
 export const CHEESE_CAVE = Object.freeze({
-  /** The mouth, on the Farlands road so it cannot be missed. */
-  mouth: Object.freeze({ x: 34, y: 43 }),
-  /** The dark bowl of cave ground around the mouth, outside. */
-  hollow: Object.freeze({ x0: 30, y0: 39, x1: 38, y1: 46 }),
+  /**
+   * THE MOUTH, in the south face of the outcrop, one tile above the road.
+   * You walk the road, you see a rock hill, and there is a hole in it.
+   */
+  mouth: Object.freeze({ x: 33, y: 40 }),
+  /** The outcrop itself — a mass of crag standing on the moor, not a hollow. */
+  hollow: Object.freeze({ x0: 29, y0: 35, x1: 39, y1: 40 }),
   /**
    * THE DOOR BESIDE THE MOUTH. Solid until you have reached the far end, and
    * then it is where you come out — the walk back is a walk back, not the
    * labyrinth in reverse. A maze is a puzzle once and a corridor after that.
    */
-  door: Object.freeze({ x: 36, y: 42 }),
+  door: Object.freeze({ x: 37, y: 40 }),
   /* --- inside. Odd coordinates, because the warren is carved on odd cells. --- */
   /** Where you arrive, bottom-left, as far from him as the map allows. */
   entry: Object.freeze({ x: 3, y: 45 }),
   /** The cheesemonger, at the top right of it. */
   monger: Object.freeze({ x: 59, y: 3 }),
-  /** The way out, beside him, once you have got that far. */
-  exit: Object.freeze({ x: 57, y: 3 }),
+  /**
+   * HIS DOOR OUT — well clear of him.
+   *
+   * It was two tiles away, and he is reachable from two tiles, so standing on
+   * the way out put you in conversation range and E talked to him instead of
+   * letting you leave. Bruno: "the cheesemonger npc should be a bit farther
+   * away from the exit stairs ... because I cant exit." Eight tiles now, and
+   * standing exactly on a way out wins over talking to anybody.
+   */
+  exit: Object.freeze({ x: 51, y: 3 }),
   /** What the cheese costs, and he has not moved on it in thirty years. */
   price: 10,
 });

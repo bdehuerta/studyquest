@@ -3445,9 +3445,12 @@ function routeCaveLeave(b, state, save) {
   // of the warren opens, not a second entrance.
   if (onExit && !h.monger) return fail('the rock is solid here.');
   cave.in = false;
+  // OUT ONTO THE GROUND IN FRONT OF IT, not into the doorway itself. The mouth
+  // is a stair and his door is a lockdoor — both are things you come THROUGH,
+  // and one of them is solid.
   const out = onExit ? CHEESE_CAVE.door : CHEESE_CAVE.mouth;
   state.player.x = out.x;
-  state.player.y = out.y;
+  state.player.y = out.y + 1;
   save(state);
   return ok({ state, inside: false, at: { ...out }, shortcut: onExit });
 }
@@ -3924,7 +3927,7 @@ function routeQuestTake(b, state, save) {
   const floor = towerFloorOf(state);
   // Elderwatch's two are up the Keep, one floor each; everywhere else they lie
   // on the map.
-  const sites = questSitesFor(area, floor);
+  const sites = questSitesFor(area, floor, caveOf(state).in);
   const wanted = typeof b.item === 'string' ? b.item : '';
   const site = sites.find((q) => q.item === wanted);
   if (!site) return fail(`there is no ${wanted || 'such thing'} to be had here.`);

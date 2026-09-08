@@ -318,6 +318,28 @@ for (const g of GEAR_SITES) {
 {
   const cave = buildCheeseCave(12345);
   const CC = CHEESE_CAVE;
+
+  // THE MOUTH, FROM OUTSIDE. It has to be a hole in rock you can reach off the
+  // road, and his door has to be a door — the first cut was an open room you
+  // could see the whole of before going in.
+  const far2 = buildFarlands(1);
+  expectTile(far2, 'the cave mouth', CC.mouth.x, CC.mouth.y, { oneOf: [T.stair] });
+  expectTile(far2, "the monger's door out", CC.door.x, CC.door.y, { oneOf: [T.lockdoor] });
+  // ...and REACHED FROM THE ROAD, not merely surrounded by a tile of floor.
+  // The generator lays a step in front of whatever coordinate the mouth names,
+  // so "is there ground there" is a question it answers by construction and
+  // cannot fail. What it cannot fake is whether you can WALK there.
+  const landing2 = CROSSINGS.find((c) => c.to === AREAS.farlands).landing;
+  const outside = floodFloorMulti(far2, landing2, []);
+  for (const [what, at] of [['the mouth', CC.mouth], ["the monger's door", CC.door]]) {
+    checked += 1;
+    const step = { x: at.x, y: at.y + 1 };
+    if (!outside.has(`${step.x},${step.y}`)) {
+      failures.push(
+        `the Farlands: ${what} cannot be reached — nothing can walk to ${step.x},${step.y} in `
+        + 'front of it, so it cannot be entered and coming out of the cave strands you');
+    }
+  }
   expectTile(cave, 'the cheese cave: the entry', CC.entry.x, CC.entry.y, { oneOf: [T.stair] });
   expectTile(cave, 'the cheese cave: the monger stands', CC.monger.x, CC.monger.y);
   expectTile(cave, 'the cheese cave: his door out', CC.exit.x, CC.exit.y, { oneOf: [T.stair] });
