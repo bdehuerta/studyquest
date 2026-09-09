@@ -1,53 +1,12 @@
-# StudyQuest — RESUME (next session)
+# StudyQuest — RESUME
 
-Cold-start here. Run `node server.js` (dev, :7777) or `open dist/StudyQuest.app` (real app).
-`./build-app.sh` rebuilds the bundle. Saves: `~/Library/Application Support/StudyQuest/Slot N/`.
+**See `HANDOFF.md`.** It is the cold-start document: the one command, where the
+game is, the guard rail, the rules not to revert, and what is next.
 
-**COMMITTING IS NOT SHIPPING.** The `.app` is what Bruno plays, and a rebuild does
-NOT restart a window he already has open. Finish every change with
-`./build-app.sh`, then tell him to quit (⌘Q) and reopen. A whole session's fixes
-once landed in git and never in the bundle, and he came back reporting all of
-them as still broken.
+    ./tools/ship.sh          contracts -> smoke -> build -> verify the bundle
 
----
-
-## WHERE THINGS STAND (2026-09-06)
-
-The story runs end to end: Herald -> Wise Man -> Elderwatch (Standard, Codex,
-Ring) -> back to the Wise Man -> **the Farlands**, which is the next chapter and
-is currently a raw map: cooled lava, a walled road in from the east, nothing
-else. `web/world/farlands.js` is about eighty lines and is where that work
-starts.
-
-Read `BACKLOG.md` (newest entry at the TOP) for the full history, and the
-per-map notes in `REACHES.md` and `ELDERWATCH.md`.
-
-### The guard rail that keeps earning its keep
-`tools/lib/geometry.mjs`, stage 4 of `./tools/check.sh`. It generates the real
-maps and asserts: every declared coordinate stands on ground that exists; every
-patrol lane is walkable end to end; a lock/gate/arch makes its prize unreachable
-while shut; no piece of Reaches gear is behind itself; and the road into
-Elderwatch survives the wood. It has found a dozen real bugs that all 25 smoke
-suites passed straight through — buried barrels, buried watchmen, and three
-barriers you could simply walk around. **Run it after any map change.**
-
-Testing, in order: `./tools/check.sh` (fast, no browser) then
-`node tools/smoke.mjs` (25 CDP suites, ~4 min; filter by full name, e.g.
-`23-mountain`). Never point tests at `~/Library/Application Support/StudyQuest/`
-— use a scratch `SQ_DATA_DIR`.
-
-### The keys as they stand
-W A S D move · E interact · 1/2 select a slot · P boat · L saves · **T tasks**
-(real coursework) · Tab the Bag · J the Codex · Esc unwinds. Quests are a TAB in
-the Bag, not a panel: `shared/quests.js`, derived from the save.
-
-### NEXT: the Farlands
-Bruno, 2026-09-06: *"after you push these changes you can start working on the
-next chapter in the farlands."* What is there: `AREAS.farlands`, the
-`emberrock` tile, a crossing gated on `wiseMan.returned`, and a corridor. What
-the fiction owes it: the twelve families, the Levy, and Ranon — and the Ring,
-which the Wise Man has already said he does not trust. Nothing yet explains what
-it costs to keep, and the Codex does not open without it.
+This file is kept only so anyone who opens it first is sent to the right place.
+Everything below is older scope, left for the record.
 
 ---
 
